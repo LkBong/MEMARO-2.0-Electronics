@@ -1,0 +1,2252 @@
+╭─── Claude Code v2.1.123 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                 Welcome back Josh!                 │ started                 │
+│                                                    │ ✔ Run /init to create … │
+│                      ▗ ▗   ▖ ▖                     │ ─────────────────────── │
+│                                                    │ What's new              │
+│                        ▘▘ ▝▝                       │ Fixed OAuth authentica… │
+│      Sonnet 4.6 · Claude Pro ·                     │ Added `ANTHROPIC_BEDRO… │
+│      joshua.ho23@imperial.ac.uk's Organization     │ Pasting a PR URL into … │
+│        ~/programming/MEMARO-2.0-Electronics        │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ /init                                                                         
+
+⏺ I'll explore the codebase to understand its structure before creating the
+  CLAUDE.md file.
+
+⏺ Explore(Explore codebase structure)
+  ⎿  Done (14 tool uses · 30.2k tokens · 33s)
+  (ctrl+o to expand)
+
+⏺ Now I have a full picture of the repo. Let me create the CLAUDE.md file.
+
+⏺ Write(CLAUDE.md)
+  ⎿  Wrote 54 lines to CLAUDE.md
+      2 # CLAUDE.md
+      3 This file provides guidance to Claude Code (claude.ai/code) when 
+        working with code in this repository.
+      5 ## Project Overview
+      6 
+      7 MEMARO 2.0 is an embedded motor control system using an ESP32 mic
+        irmware uses Arduino (`.ino`) format and is developed with the Ar
+        duino IDE. PCB design is done in KiCAD.
+      8 
+      9 ## Development Environment
+     … +69 lines (ctrl+o to expand)
+
+⏺ CLAUDE.md is created. It covers:
+
+  - Dev environment — Arduino IDE setup (board manager URL, baud rate) and KiCAD
+   for PCB work, since there's no CLI build system
+  - Firmware architecture — the 50 ms control loop, each subsystem (speed,
+  direction, enable, feedback), and the key constants table
+  - Hardware context — GPIO mapping summary and pointer to the full wiring doc
+  - Known issues & roadmap — the two open bugs and the planned Bluetooth
+  replacement for the temporary potentiometer/button interface
+
+✻ Churned for 1m 5s
+
+!  mkdir ios-app                                                                
+  ⎿  (Bash completed with no output)
+
+❯ Project Context: MEMARO 2.0 is my mars rover project. @ESP32_control/         
+  contains arduino files for controlling a BLDC motor via such relationship:    
+  ESP32 pins are wired upto ESCON driver, ESCON driver is connected to a maxon  
+  BLDC motor. This module is self-contained.                                    
+  Note: PWM pin numbers are temporal, as only 1 motor is currently wired up     
+  whereas 2 will exist in motor.                                                
+  The rover ESP32 will be controlled via BLE (bluetooth low energyy) with an    
+  IOS app; and the ESP32 will provide feedback to the IOS app.                  
+                                                                                
+  Task: Scope of this section is to create such IOS app, within the ios-app     
+  folder I'd just created.                                                      
+  I will provide soft constraints, you should determine hard constraints and    
+  package versions                                                              
+  Module must support the following criteria:                                   
+  1. forwards AND backwards drive                                               
+  2. Left and Right Rotation                                                    
+  3. Speed up and speed down (acceleration doesnt matter)                       
+  thus joy stick would be recommended with speed slider on the side to specify  
+  responsiveness                                                                
+  middle of UI should show speed feedback (of motor) and torque feedback (via   
+  current reading from driver)                                                  
+                                                                                
+  Note: ramp up and ramp down is ESP's problem. output of the IOS app is simply 
+   serial signals as input for ESP. whereas ESP provides feedback as input to   
+  IOS app to be displayed                                                       
+                                                                                
+  Create preliminary plan, ask me questions if unclear                          
+  ⎿  Listed directory ESP32_control/
+
+⏺ Let me read the existing firmware and docs to understand the signal protocol
+  before planning the iOS app.
+
+⏺ Explore(Explore ESP32 firmware and wiring docs)
+  ⎿  Done (2 tool uses · 25.2k tokens · 18s)
+  (ctrl+o to expand)
+
+⏺ Good, now I have everything I need. Let me write the plan.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ User answered Claude's questions:
+  ⎿  · What should the iOS app be named? → MEMARO Controller
+     · How should joystick deflection interact with the speed slider? → 
+     Proportional (Recommended)
+     · How should the app find and connect to the rover? → Device picker
+
+⏺ Good. Updating the plan with those answers and finalising.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+  ⎿  User rejected Claude's plan:
+     ╭─────────────────────────────────────────────────────────────────────────╮
+     │ Plan: MEMARO 2.0 iOS BLE Controller App                                 │
+     │                                                                         │
+     │ Context                                                                 │
+     │                                                                         │
+     │ MEMARO 2.0 is a Mars rover with an ESP32 driving BLDC motors via an     │
+     │ ESCON motor driver. Currently 1 motor is wired; 2-motor differential    │
+     │ drive is the target. The iOS app will replace the temporary             │
+     │ potentiometer/button bench controls with a wireless BLE interface. The  │
+     │ app sends control commands and displays live motor feedback (RPM and    │
+     │ current).                                                               │
+     │                                                                         │
+     │ No BLE code exists in the ESP32 firmware yet — this plan defines the    │
+     │ protocol the ESP32 must implement to match the iOS app.                 │
+     │                                                                         │
+     │ ---                                                                     │
+     │ BLE Protocol (defines what ESP32 firmware must also implement)          │
+     │                                                                         │
+     │ Custom GATT Service UUID: 4FAFC201-1FB5-459E-8FCC-C5C9C331914B          │
+     │                                                                         │
+     │ ┌──────────────┬──────────────────────────────────┬──────────┬───────── │
+     │ ──┐                                                                     │
+     │ │ Characterist │               UUID               │ Directio │          │
+     │ Propertie │                                                             │
+     │ │      ic      │                                  │    n     │     s    │
+     │   │                                                                     │
+     │ ├──────────────┼──────────────────────────────────┼──────────┼───────── │
+     │ ──┤                                                                     │
+     │ │              │ BEB5483E-36E1-4688-B7F5-EA07361B │ iOS →    │ Write    │
+     │   │                                                                     │
+     │ │ Control      │ 26A8                             │ ESP32    │ Without  │
+     │   │                                                                     │
+     │ │              │                                  │          │ Response │
+     │   │                                                                     │
+     │ ├──────────────┼──────────────────────────────────┼──────────┼───────── │
+     │ ──┤                                                                     │
+     │ │ Feedback     │ 1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F │ ESP32 →  │ Notify   │
+     │   │                                                                     │
+     │ │              │ 1234                             │ iOS      │          │
+     │   │                                                                     │
+     │ └──────────────┴──────────────────────────────────┴──────────┴───────── │
+     │ ──┘                                                                     │
+     │                                                                         │
+     │ Control packet (3 bytes, sent ~50 ms throttle):                         │
+     │ - Byte 0 x: Int8 –100 to 100 (left negative, right positive)            │
+     │ - Byte 1 y: Int8 –100 to 100 (backward negative, forward positive)      │
+     │ - Byte 2 speed: UInt8 0–255 (maps directly to ESP32 8-bit PWM range)    │
+     │                                                                         │
+     │ Feedback packet (4 bytes, ESP32 notifies every ~50 ms):                 │
+     │ - Bytes 0–1: UInt16 big-endian — RPM (0–5260)                           │
+     │ - Bytes 2–3: UInt16 big-endian — current in milliamps (0–1000 =         │
+     │ 0.000–1.000 A)                                                          │
+     │                                                                         │
+     │ ---                                                                     │
+     │ iOS App Architecture                                                    │
+     │                                                                         │
+     │ Technology Stack                                                        │
+     │                                                                         │
+     │ - Language: Swift 5.9+                                                  │
+     │ - UI: SwiftUI                                                           │
+     │ - BLE: CoreBluetooth (no third-party packages)                          │
+     │ - Minimum deployment target: iOS 16.0                                   │
+     │ - Xcode project: Full .xcodeproj with project.pbxproj                   │
+     │                                                                         │
+     │ File Structure                                                          │
+     │                                                                         │
+     │ ios-app/                                                                │
+     │ ├── MEMARO.xcodeproj/                                                   │
+     │ │   └── project.pbxproj                                                 │
+     │ └── MEMARO/                                                             │
+     │     ├── MEMAROApp.swift        # @main, injects BLEManager as           │
+     │ environment object                                                      │
+     │     ├── ContentView.swift      # Root layout                            │
+     │     ├── BLEManager.swift       # CoreBluetooth central,                 │
+     │ ObservableObject                                                        │
+     │     ├── JoystickView.swift     # Custom drag-gesture joystick component │
+     │     ├── FeedbackView.swift     # RPM + current display gauges           │
+     │     ├── Assets.xcassets/                                                │
+     │     │   └── Contents.json                                               │
+     │     └── Info.plist             # NSBluetoothAlwaysUsageDescription      │
+     │ required                                                                │
+     │                                                                         │
+     │ BLEManager.swift                                                        │
+     │                                                                         │
+     │ ObservableObject wrapping CBCentralManager + CBPeripheralDelegate:      │
+     │ - @Published isConnected: Bool                                          │
+     │ - @Published rpm: Int                                                   │
+     │ - @Published currentA: Double                                           │
+     │ - @Published peripherals: [CBPeripheral] (scan results)                 │
+     │ - startScan() / connect(_ peripheral) / disconnect()                    │
+     │ - sendControl(x: Int8, y: Int8, speed: UInt8) — writes 3-byte packet to │
+     │  control characteristic                                                 │
+     │ - Internal 50 ms Timer throttle on sends to match ESP32 loop frequency  │
+     │                                                                         │
+     │ ContentView.swift — Portrait Layout                                     │
+     │                                                                         │
+     │ ┌──────────────────────────────┐                                        │
+     │ │  ◉ Scanning…      [Connect] │  ← BLE status + scan/connect button     │
+     │ ├──────────────────────────────┤                                        │
+     │ │  ┌────────────────────────┐  │                                        │
+     │ │  │  3,142 RPM  │  0.412 A │  │  ← FeedbackView (live motor telemetry) │
+     │ │  └────────────────────────┘  │                                        │
+     │ │                              │                                        │
+     │ │ [Spd]    ┌────────────────┐  │                                        │
+     │ │  slider  │                │  │                                        │
+     │ │ vertical │   JoystickView │  │                                        │
+     │ │  0–100%  │       ○        │  │                                        │
+     │ │          │                │  │                                        │
+     │ │          └────────────────┘  │                                        │
+     │ └──────────────────────────────┘                                        │
+     │                                                                         │
+     │ JoystickView.swift                                                      │
+     │                                                                         │
+     │ - Circular drag zone, ~250 pt diameter                                  │
+     │ - Knob follows DragGesture, clamped to radius                           │
+     │ - Outputs (x: Double, y: Double) normalized to [–1.0, 1.0]              │
+     │ - Dead zone: 0.15 normalized radius → outputs (0, 0)                    │
+     │ - On gesture end: knob snaps to center, emits (0, 0)                    │
+     │                                                                         │
+     │ Control Mapping                                                         │
+     │                                                                         │
+     │ // On any joystick/slider change:                                       │
+     │ let controlX = Int8(clamping: Int(joystick.x * 100))                    │
+     │ let controlY = Int8(clamping: Int(joystick.y * 100))                    │
+     │ let speed    = UInt8(sliderValue * 255)   // sliderValue: 0.0–1.0       │
+     │ ble.sendControl(x: controlX, y: controlY, speed: speed)                 │
+     │                                                                         │
+     │ Joystick magnitude (partial deflection) scales the x/y values           │
+     │ proportionally. Speed slider is a separate max-speed cap; the ESP       │
+     │ multiplies its own PWM by (|vector| * speed / 100).                     │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Confirmed Design Decisions                                              │
+     │                                                                         │
+     │ - App name: "MEMARO Controller"                                         │
+     │ - Joystick + speed: Proportional — speed_sent = sliderValue ×           │
+     │ joystickMagnitude × 255                                                 │
+     │ - BLE UX: Device picker — scan results list, tap to connect             │
+     ╰─────────────────────────────────────────────────────────────────────────╯
+
+❯ Changes:                                                                      
+  1. device should always be landscape (fix rotation) -> add that constraint    
+  2. joy stick at left                                                          
+  3. responsiveness: adaptive to different device sizes. design against         
+  iphone13, but take other form factor into account                             
+                                                                                
+  Then, propose a recommended tech stack, I'll then iterate                     
+
+⏺ Updating the plan with the layout changes, then proposing the tech stack.
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Here's the proposed tech stack:
+
+  ---
+  Recommended: Pure SwiftUI
+
+  Concern: UI framework
+  Choice: SwiftUI
+  Reason: GeometryReader makes proportional sizing trivial; less code than UIKit
+  ────────────────────────────────────────
+  Concern: BLE
+  Choice: CoreBluetooth
+  Reason: Native, no alternative exists on iOS
+  ────────────────────────────────────────
+  Concern: Joystick
+  Choice: Custom DragGesture view
+  Reason: ~60 lines, no library bloat, full control over dead-zone and snap-back
+  ────────────────────────────────────────
+  Concern: Orientation lock
+  Choice: Info.plist UISupportedInterfaceOrientations → landscape only
+  Reason: Single plist key, no runtime code
+  ────────────────────────────────────────
+  Concern: Responsiveness
+  Choice: GeometryReader + proportional sizing (% of safeAreaLayoutGuide)
+  Reason: Scales cleanly from iPhone SE → iPad
+  ────────────────────────────────────────
+  Concern: Dependencies
+  Choice: None
+  Reason: Everything needed is in the Apple SDK
+  ────────────────────────────────────────
+  Concern: Min iOS
+  Choice: 16.0
+  Reason: All SwiftUI APIs used are available on 16+; covers ~95% of active
+    iPhones
+
+  The one tradeoff: SwiftUI's DragGesture has slightly more latency than UIKit
+  touch handling (~1 frame). For a motor controller this is acceptable — BLE
+  round-trip latency (~20 ms) dominates anyway.
+
+  Alternative to consider: UIKit if you want raw touchesMoved for the joystick
+  at the cost of ~3× more boilerplate. Not recommended here.
+
+  ---
+  Let me know if you'd like to adjust anything (e.g. UIKit joystick, different
+  iOS floor, a state-management library like Combine vs async/await for BLE
+  callbacks), and I'll finalise the plan.
+
+✻ Worked for 33s
+
+❯ im comfortable with SwiftUI's gesture latency here,  the bottleneck is BLE    
+  round-trip, not the touch handler. UIKit isn't worth the boilerplate          
+                                                                                
+  also, Before we proceed for BLE callbacks in CBCentralManagerDelegate,        
+  should we use Combine publishers or async/await?                              
+  Given iOS 16 minimum, both are available. What's your recommendation          
+  and why?                                                                      
+
+⏺ Recommendation: neither — keep it to @MainActor ObservableObject with 
+  @Published.
+
+  Here's why the "pick one" framing is a false dilemma:
+
+  @Published is Combine under the hood, and SwiftUI's data flow already binds to
+   it. Adding PassthroughSubject chains on top creates a second reactive layer
+  with zero benefit. Wrapping every delegate callback into an AsyncStream adds
+  boilerplate for a problem that doesn't need it.
+
+  The BLE use case here is simple:
+
+  ┌────────────────────────────┬────────────────────────────────────────────┐
+  │         Event type         │                  Pattern                   │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ Continuous feedback (RPM,  │ Update @Published directly in delegate     │
+  │ current every ~50 ms)      │ callback                                   │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ State changes (connected,  │ Update @Published directly                 │
+  │ disconnected, scanning)    │                                            │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ One-shot sequences (scan → │ async/await + withCheckedContinuation only │
+  │  pick → connect →          │  if it reads cleaner than a state machine  │
+  │ discover)                  │                                            │
+  └────────────────────────────┴────────────────────────────────────────────┘
+
+  Concrete approach:
+
+  @MainActor
+  final class BLEManager: NSObject, ObservableObject {
+      @Published var rpm: Int = 0
+      @Published var currentA: Double = 0
+      @Published var isConnected: Bool = false
+      @Published var peripherals: [CBPeripheral] = []
+
+      // Delegate callback — just assign, SwiftUI reacts automatically
+      func peripheral(_ p: CBPeripheral, didUpdateValueFor characteristic:
+  CBCharacteristic, error: Error?) {
+          guard let data = characteristic.value, data.count == 4 else { return }
+          rpm      = Int(data[0]) << 8 | Int(data[1])
+          currentA = Double(Int(data[2]) << 8 | Int(data[3])) / 1000.0
+      }
+  }
+
+  No .sink, no AnyCancellable bag, no AsyncStream. The @MainActor annotation
+  ensures thread safety — CoreBluetooth calls delegates on its own queue, and
+  @MainActor routes the work to the main thread automatically.
+
+  async/await would add value if you were chaining scan → connect → discover as
+  a structured sequence, but given the device picker UX (user taps a peripheral,
+   then connect happens), the delegate state machine is already the natural fit.
+
+  ---
+  Happy to finalise the plan and proceed when you're ready.
+
+✻ Crunched for 31s
+
+❯ update plan, and claude.md to reflect agreed architecture decisions. show me  
+  changes                                                                       
+
+⏺ Let me read both files first, then update them.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Now I'll update both files in parallel.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Update(CLAUDE.md)
+  ⎿  Added 51 lines, removed 1 line
+       47  - `Electronics.kicad_pcb` — board layout (currently minimal/in
+            progress)
+       48  - `Components/ESP32_NODEMCU/` — KiCAD symbol, footprint, and S
+           TEP 3D model for the AZ Delivery ESP32 NodeMCU board (sourced 
+           from SnapEDA)
+       49  
+       50 +## iOS App (`ios-app/`)                                       
+       51 +                                                              
+       52 +SwiftUI controller app ("MEMARO Controller") that replaces the
+          + temporary potentiometer/button bench controls with wireless B
+          +LE input and displays live motor telemetry.                   
+       53 +                                                              
+       54 +### Tech Stack                                                
+       55 +- **UI:** SwiftUI, landscape-only (enforced in `Info.plist` vi
+          +a `UISupportedInterfaceOrientations`)                         
+       56 +- **BLE:** CoreBluetooth — no third-party packages            
+       57 +- **Concurrency:** `@MainActor ObservableObject` + `@Published
+          +` throughout; delegate callbacks update `@Published` propertie
+          +s directly. No `PassthroughSubject`, no `AsyncStream`, no `Any
+          +Cancellable`.                                                 
+       58 +- **Responsiveness:** `GeometryReader` for proportional sizing
+          +; baseline design device is iPhone 13                         
+       59 +- **Min iOS:** 16.0                                           
+       60 +                                                              
+       61 +### BLE Protocol                                              
+       62 +                                                              
+       63 +**GATT Service UUID:** `4FAFC201-1FB5-459E-8FCC-C5C9C331914B` 
+       64 +                                                              
+       65 +| Characteristic | UUID | Direction | Properties |            
+       66 +|---|---|---|---|                                             
+       67 +| Control | `BEB5483E-36E1-4688-B7F5-EA07361B26A8` | iOS → ESP
+          +32 | Write Without Response |                                 
+       68 +| Feedback | `1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F1234` | ESP32 → 
+          +iOS | Notify |                                                
+       69 +                                                              
+       70 +**Control packet — 3 bytes, throttled to ~50 ms:**            
+       71 +- `x` (Int8, –100 to 100): left/right joystick axis (negative 
+          += left)                                                       
+       72 +- `y` (Int8, –100 to 100): forward/backward joystick axis (neg
+          +ative = backward)                                             
+       73 +- `speed` (UInt8, 0–255): speed slider value, maps directly to
+          + ESP32 8-bit PWM                                              
+       74 +                                                              
+       75 +**Feedback packet — 4 bytes from ESP32 every ~50 ms:**        
+       76 +- Bytes 0–1: UInt16 big-endian — RPM (0–5260)                 
+       77 +- Bytes 2–3: UInt16 big-endian — current in milliamps (0–1000 
+          +→ 0.000–1.000 A)                                              
+       78 +                                                              
+       79 +**Control mapping:**                                          
+       80 +```                                                           
+       81 +speed_sent = sliderValue (0–1) × joystickMagnitude (0–1) × 255
+       82 +```                                                           
+       83 +Joystick deflection and slider are both proportional; partial 
+          +deflection reduces the sent speed.                            
+       84 +                                                              
+       85 +### Landscape Layout (left → centre → right)                  
+       86 +```                                                           
+       87 +┌─────────────────────────────────────────────────────────────
+          +─┐                                                            
+       88 +│  ┌──────────┐    ┌────────────────────────┐    ┌─────────┐  
+          +│                                                             
+       89 +│  │ Joystick │    │  3,142 RPM  │  0.412 A │    │  Speed  │  
+          +│                                                             
+       90 +│  │    ○     │    │  ◉ MEMARO  [Connect]   │    │  Slider │  
+          +│                                                             
+       91 +│  └──────────┘    └────────────────────────┘    └─────────┘  
+          +│                                                             
+       92 +└─────────────────────────────────────────────────────────────
+          +─┘                                                            
+       93 +```                                                           
+       94 +Joystick diameter = `min(width × 0.35, height × 0.85)`. BLE co
+          +nnect UX is a device picker (scan list → tap to connect).     
+       95 +                                                              
+       96 +### ESP32 BLE Firmware (not yet implemented)                  
+       97 +The ESP32 firmware must advertise the GATT service above and i
+          +mplement both characteristics. The `UUIDs`, packet formats, an
+          +d 50 ms notify interval are the contract between the two sides
+          +.                                                             
+       98 +                                                              
+       99  ## Known Issues & Planned Work
+      100  
+      101  - **PWM range bug:** Duty cycle does not reset correctly when 
+           it exceeds the valid range
+      102  - **ESCON DI2/DI3 unresponsive:** ESCON Studio shows DI2 and D
+           I3 not responding; root cause under investigation
+       54 -- **Bluetooth replacement:** Potentiometer and physical button
+          -s are temporary; the planned next step is Bluetooth wireless c
+          -ontrol for speed setpoint, direction, and enable              
+      103 +- **BLE firmware:** ESP32 BLE GATT server not yet implemented 
+          +— must match the protocol defined above                       
+      104 +- **Two-motor expansion:** PWM pin assignments in firmware are
+          + temporary (1 motor wired); will expand to differential drive 
+          +when second motor is added                                    
+
+❯ I see it's added a feedback characteristic with Notify  that'sright only      
+  thing the ESP32 will push telemetry to the app rather than the app polling    
+  for it.                                                                       
+
+⏺ Correct — that's the right BLE pattern for this use case. The ESP32 calls
+  pCharacteristic->notify() after each 50 ms sensor read, and iOS receives it
+  via didUpdateValueFor. The app only needs to call setNotifyValue(true, for: 
+  feedbackCharacteristic) once after discovery, and the ESP drives the cadence
+  from there.
+
+  No changes needed — the plan and CLAUDE.md already reflect this. Ready to
+  start implementing when you are.
+
+✻ Cogitated for 1m 1s
+
+❯ I'll add some hard constraints now:                                           
+  markdown## Hard Constraints — Do Not Change Without Explicit Instruction      
+                                                                                
+  ### Firmware output pins — NEVER reassign                                     
+  | GPIO | Function |                                                           
+  |------|----------|                                                           
+  | 19 | PWM speed output (20kHz, 8-bit, ledcAttach/ledcWrite v3.x API) |       
+  | 16 | Enable output to motor driver (HIGH=enabled) |                         
+  | 17 | Direction output (HIGH=CCW, LOW=CW) |                                  
+  | 25 | AnOUT1 current feedback ADC input |                                    
+  | 26 | AnOUT2 speed feedback ADC input |                                      
+                                                                                
+  ### Firmware — to be REMOVED in BLE rewrite                                   
+  | GPIO | Function |                                                           
+  |------|----------|                                                           
+  | 4 | Potentiometer — replaced by BLE |                                       
+  | 21 | Enable toggle button — replaced by BLE |                               
+  | 0 | Direction toggle button — replaced by BLE |                             
+                                                                                
+  ### iOS architecture — do not deviate                                         
+  - @MainActor ObservableObject with @Published only                            
+  - No Combine chains, no AsyncStream, no AnyCancellable                        
+  - motorCharacteristic: CBCharacteristic? must be nilled on disconnect before  
+  reconnect                                                                     
+  - NSBluetoothAlwaysUsageDescription must be present in Info.plist             
+                                                                                
+  ### BLE library on ESP32                                                      
+  - Use NimBLE-Arduino only                                                     
+  - Do not use ESP32 BLE Arduino (too heavy)                                    
+
+⏺ Updating both files now.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Update(CLAUDE.md)
+  ⎿  Added 5 lines
+      58  - **Responsiveness:** `GeometryReader` for proportional sizing;
+           baseline design device is iPhone 13
+      59  - **Min iOS:** 16.0
+      60  
+      61 +### iOS Hard Constraints — Do Not Change Without Explicit Instr
+         +uction                                                         
+      62 +- `@MainActor ObservableObject` + `@Published` only — no Combin
+         +e chains, no `AsyncStream`, no `AnyCancellable`                
+      63 +- `motorCharacteristic: CBCharacteristic?` must be set to `nil`
+         + on disconnect before any reconnect attempt                    
+      64 +- `NSBluetoothAlwaysUsageDescription` must be present in `Info.
+         +plist`                                                         
+      65 +                                                               
+      66  ### BLE Protocol
+      67  
+      68  **GATT Service UUID:** `4FAFC201-1FB5-459E-8FCC-C5C9C331914B`
+
+⏺ Update(CLAUDE.md)
+  ⎿  Added 21 lines, removed 1 line
+       99  Joystick diameter = `min(width × 0.35, height × 0.85)`. BLE co
+           nnect UX is a device picker (scan list → tap to connect).
+      100  
+      101  ### ESP32 BLE Firmware (not yet implemented)
+      102 -The ESP32 firmware must advertise the GATT service above and i
+          -mplement both characteristics. The `UUIDs`, packet formats, an
+          -d 50 ms notify interval are the contract between the two sides
+          -.                                                             
+      102 +The ESP32 firmware must advertise the GATT service above and i
+          +mplement both characteristics. The UUIDs, packet formats, and 
+          +50 ms notify interval are the contract between the two sides. 
+      103  
+      104 +### Firmware Hard Constraints — Do Not Change Without Explicit
+          + Instruction                                                  
+      105 +                                                              
+      106 +**Pins — never reassign:**                                    
+      107 +| GPIO | Function |                                           
+      108 +|------|----------|                                           
+      109 +| 19 | PWM speed output (20 kHz, 8-bit, `ledcAttach`/`ledcWrit
+          +e` v3.x API) |                                                
+      110 +| 16 | Enable output (HIGH = enabled) |                       
+      111 +| 17 | Direction output (HIGH = CCW, LOW = CW) |              
+      112 +| 25 | AnOUT1 current feedback ADC input |                    
+      113 +| 26 | AnOUT2 speed feedback ADC input |                      
+      114 +                                                              
+      115 +**Pins — remove when rewriting for BLE:**                     
+      116 +| GPIO | Temporary function |                                 
+      117 +|------|-------------------|                                  
+      118 +| 4 | Potentiometer speed input |                             
+      119 +| 21 | Enable toggle button |                                 
+      120 +| 0 | Direction toggle button |                               
+      121 +                                                              
+      122 +**BLE library: NimBLE-Arduino only** — do not use ESP32 BLE Ar
+          +duino (too heavy).                                            
+      123 +                                                              
+      124  ## Known Issues & Planned Work
+      125  
+      126  - **PWM range bug:** Duty cycle does not reset correctly when 
+           it exceeds the valid range
+
+⏺ Both files updated. The three new constraints landed in each:
+
+  1. Firmware pins — permanent vs. to-be-removed table, with the
+  ledcAttach/ledcWrite v3.x API call noted on GPIO19
+  2. iOS architecture — motorCharacteristic nil-on-disconnect rule added (this
+  was net-new, not previously captured)
+  3. NimBLE-Arduino — called out as the only permitted BLE library on the ESP32
+  side
+
+  The motorCharacteristic nil rule is particularly worth noting — it prevents
+  stale characteristic references from a prior connection being used silently on
+   reconnect, which is a subtle CoreBluetooth bug that's easy to miss.
+
+✻ Cooked for 30s
+
+❯ ok divide execution into 3 steps: firmware, ios scaffold + ble mannager, and  
+  lastly joystick ui. then i'll prompt                                          
+
+⏺ Updated plan
+  ⎿  /plan to preview
+  ⎿  User rejected Claude's plan:
+     ╭─────────────────────────────────────────────────────────────────────────╮
+     │ Plan: MEMARO 2.0 iOS BLE Controller App                                 │
+     │                                                                         │
+     │ Context                                                                 │
+     │                                                                         │
+     │ MEMARO 2.0 is a Mars rover with an ESP32 driving BLDC motors via an     │
+     │ ESCON motor driver. Currently 1 motor is wired; 2-motor differential    │
+     │ drive is the target. The iOS app will replace the temporary             │
+     │ potentiometer/button bench controls with a wireless BLE interface. The  │
+     │ app sends control commands and displays live motor feedback (RPM and    │
+     │ current).                                                               │
+     │                                                                         │
+     │ No BLE code exists in the ESP32 firmware yet — this plan defines the    │
+     │ protocol the ESP32 must implement to match the iOS app.                 │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Hard Constraints — Do Not Change Without Explicit Instruction           │
+     │                                                                         │
+     │ Firmware output pins — NEVER reassign                                   │
+     │                                                                         │
+     │ ┌──────┬─────────────────────────────────────────────────────────────── │
+     │ ──┐                                                                     │
+     │ │ GPIO │                            Function                            │
+     │   │                                                                     │
+     │ ├──────┼─────────────────────────────────────────────────────────────── │
+     │ ──┤                                                                     │
+     │ │ 19   │ PWM speed output (20 kHz, 8-bit, ledcAttach/ledcWrite v3.x     │
+     │ API) │                                                                  │
+     │ ├──────┼─────────────────────────────────────────────────────────────── │
+     │ ──┤                                                                     │
+     │ │ 16   │ Enable output to motor driver (HIGH = enabled)                 │
+     │   │                                                                     │
+     │ ├──────┼─────────────────────────────────────────────────────────────── │
+     │ ──┤                                                                     │
+     │ │ 17   │ Direction output (HIGH = CCW, LOW = CW)                        │
+     │   │                                                                     │
+     │ ├──────┼─────────────────────────────────────────────────────────────── │
+     │ ──┤                                                                     │
+     │ │ 25   │ AnOUT1 current feedback ADC input                              │
+     │   │                                                                     │
+     │ ├──────┼─────────────────────────────────────────────────────────────── │
+     │ ──┤                                                                     │
+     │ │ 26   │ AnOUT2 speed feedback ADC input                                │
+     │   │                                                                     │
+     │ └──────┴─────────────────────────────────────────────────────────────── │
+     │ ──┘                                                                     │
+     │                                                                         │
+     │ Firmware pins — remove in BLE rewrite                                   │
+     │                                                                         │
+     │ ┌──────┬───────────────────────────────────────────┐                    │
+     │ │ GPIO │            Temporary function             │                    │
+     │ ├──────┼───────────────────────────────────────────┤                    │
+     │ │ 4    │ Potentiometer — replaced by BLE speed     │                    │
+     │ ├──────┼───────────────────────────────────────────┤                    │
+     │ │ 21   │ Enable toggle button — replaced by BLE    │                    │
+     │ ├──────┼───────────────────────────────────────────┤                    │
+     │ │ 0    │ Direction toggle button — replaced by BLE │                    │
+     │ └──────┴───────────────────────────────────────────┘                    │
+     │                                                                         │
+     │ iOS architecture                                                        │
+     │                                                                         │
+     │ - @MainActor ObservableObject with @Published only — no Combine chains, │
+     │  no AsyncStream, no AnyCancellable                                      │
+     │ - motorCharacteristic: CBCharacteristic? must be set to nil on          │
+     │ disconnect before any reconnect attempt                                 │
+     │ - NSBluetoothAlwaysUsageDescription must be present in Info.plist       │
+     │                                                                         │
+     │ ESP32 BLE library                                                       │
+     │                                                                         │
+     │ - NimBLE-Arduino only — do not use ESP32 BLE Arduino (too heavy)        │
+     │                                                                         │
+     │ ---                                                                     │
+     │ BLE Protocol (defines what ESP32 firmware must also implement)          │
+     │                                                                         │
+     │ Custom GATT Service UUID: 4FAFC201-1FB5-459E-8FCC-C5C9C331914B          │
+     │                                                                         │
+     │ ┌──────────────┬──────────────────────────────────┬──────────┬───────── │
+     │ ──┐                                                                     │
+     │ │ Characterist │               UUID               │ Directio │          │
+     │ Propertie │                                                             │
+     │ │      ic      │                                  │    n     │     s    │
+     │   │                                                                     │
+     │ ├──────────────┼──────────────────────────────────┼──────────┼───────── │
+     │ ──┤                                                                     │
+     │ │              │ BEB5483E-36E1-4688-B7F5-EA07361B │ iOS →    │ Write    │
+     │   │                                                                     │
+     │ │ Control      │ 26A8                             │ ESP32    │ Without  │
+     │   │                                                                     │
+     │ │              │                                  │          │ Response │
+     │   │                                                                     │
+     │ ├──────────────┼──────────────────────────────────┼──────────┼───────── │
+     │ ──┤                                                                     │
+     │ │ Feedback     │ 1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F │ ESP32 →  │ Notify   │
+     │   │                                                                     │
+     │ │              │ 1234                             │ iOS      │          │
+     │   │                                                                     │
+     │ └──────────────┴──────────────────────────────────┴──────────┴───────── │
+     │ ──┘                                                                     │
+     │                                                                         │
+     │ Control packet (3 bytes, sent ~50 ms throttle):                         │
+     │ - Byte 0 x: Int8 –100 to 100 (left negative, right positive)            │
+     │ - Byte 1 y: Int8 –100 to 100 (backward negative, forward positive)      │
+     │ - Byte 2 speed: UInt8 0–255 (maps directly to ESP32 8-bit PWM range)    │
+     │                                                                         │
+     │ Feedback packet (4 bytes, ESP32 notifies every ~50 ms):                 │
+     │ - Bytes 0–1: UInt16 big-endian — RPM (0–5260)                           │
+     │ - Bytes 2–3: UInt16 big-endian — current in milliamps (0–1000 =         │
+     │ 0.000–1.000 A)                                                          │
+     │                                                                         │
+     │ ---                                                                     │
+     │ iOS App Architecture                                                    │
+     │                                                                         │
+     │ Technology Stack                                                        │
+     │                                                                         │
+     │ - Language: Swift 5.9+                                                  │
+     │ - UI: SwiftUI (landscape layout via GeometryReader, no UIKit)           │
+     │ - BLE: CoreBluetooth — no third-party packages                          │
+     │ - Concurrency: @MainActor ObservableObject + @Published; no             │
+     │ PassthroughSubject, no AsyncStream, no AnyCancellable bag               │
+     │ - Minimum deployment target: iOS 16.0                                   │
+     │ - Xcode project: Full .xcodeproj with project.pbxproj                   │
+     │ - Orientation: Landscape-only, enforced via                             │
+     │ UISupportedInterfaceOrientations in Info.plist                          │
+     │                                                                         │
+     │ File Structure                                                          │
+     │                                                                         │
+     │ ios-app/                                                                │
+     │ ├── MEMARO Controller.xcodeproj/                                        │
+     │ │   └── project.pbxproj                                                 │
+     │ └── MEMARO Controller/                                                  │
+     │     ├── MEMAROControllerApp.swift  # @main, injects BLEManager as       │
+     │ environment object                                                      │
+     │     ├── ContentView.swift          # Root landscape layout              │
+     │     ├── BLEManager.swift           # @MainActor ObservableObject,       │
+     │ CBCentralManager                                                        │
+     │     ├── JoystickView.swift         # DragGesture joystick, outputs (x,  │
+     │ y) ∈ [–1, 1]                                                            │
+     │     ├── FeedbackView.swift         # RPM + current live display         │
+     │     ├── Assets.xcassets/                                                │
+     │     │   └── Contents.json                                               │
+     │     └── Info.plist                 # NSBluetoothAlwaysUsageDescription  │
+     │ + landscape lock                                                        │
+     │                                                                         │
+     │ BLEManager.swift                                                        │
+     │                                                                         │
+     │ @MainActor final class BLEManager: NSObject, ObservableObject —         │
+     │ delegate callbacks update @Published properties directly; @MainActor    │
+     │ ensures thread safety without manual DispatchQueue.main.async.          │
+     │                                                                         │
+     │ @MainActor                                                              │
+     │ final class BLEManager: NSObject, ObservableObject {                    │
+     │     @Published var isConnected: Bool = false                            │
+     │     @Published var rpm: Int = 0                                         │
+     │     @Published var currentA: Double = 0.0                               │
+     │     @Published var peripherals: [CBPeripheral] = []                     │
+     │     @Published var isScanning: Bool = false                             │
+     │                                                                         │
+     │     func startScan()                                                    │
+     │     func stopScan()                                                     │
+     │     func connect(_ peripheral: CBPeripheral)                            │
+     │     func disconnect()                                                   │
+     │     func sendControl(x: Int8, y: Int8, speed: UInt8)  // 50 ms Timer    │
+     │ throttle                                                                │
+     │ }                                                                       │
+     │                                                                         │
+     │ Feedback delegate callback example:                                     │
+     │ func peripheral(_ p: CBPeripheral, didUpdateValueFor characteristic:    │
+     │ CBCharacteristic, error: Error?) {                                      │
+     │     guard let data = characteristic.value, data.count == 4 else {       │
+     │ return }                                                                │
+     │     rpm      = Int(data[0]) << 8 | Int(data[1])                         │
+     │     currentA = Double(Int(data[2]) << 8 | Int(data[3])) / 1000.0        │
+     │ }                                                                       │
+     │                                                                         │
+     │ ContentView.swift — Landscape-only Layout (baseline: iPhone 13)         │
+     │                                                                         │
+     │ Orientation locked to landscape via Info.plist                          │
+     │ (UISupportedInterfaceOrientations = landscape only). Sizing driven by   │
+     │ GeometryReader so layout scales proportionally across form factors (SE, │
+     │  13, 14 Pro Max, iPad).                                                 │
+     │                                                                         │
+     │ ┌──────────────────────────────────────────────────────────────┐        │
+     │ │                                                              │        │
+     │ │  ┌──────────┐    ┌────────────────────────┐    ┌─────────┐  │         │
+     │ │  │          │    │   3,142 RPM            │    │         │  │         │
+     │ │  │ Joystick │    │   0.412 A              │    │  Speed  │  │         │
+     │ │  │    ○     │    │                        │    │  Slider │  │         │
+     │ │  │          │    │  ◉ MEMARO  [Connect]   │    │  vert.  │  │         │
+     │ │  └──────────┘    └────────────────────────┘    └─────────┘  │         │
+     │ │                                                              │        │
+     │ └──────────────────────────────────────────────────────────────┘        │
+     │   LEFT: Joystick        CENTRE: Feedback + BLE       RIGHT: Speed       │
+     │                                                                         │
+     │ Joystick diameter = min(geometry.size.width * 0.35,                     │
+     │ geometry.size.height * 0.85) — stays circular and within safe area on   │
+     │ all devices.                                                            │
+     │                                                                         │
+     │ JoystickView.swift                                                      │
+     │                                                                         │
+     │ - Circular drag zone, ~250 pt diameter                                  │
+     │ - Knob follows DragGesture, clamped to radius                           │
+     │ - Outputs (x: Double, y: Double) normalized to [–1.0, 1.0]              │
+     │ - Dead zone: 0.15 normalized radius → outputs (0, 0)                    │
+     │ - On gesture end: knob snaps to center, emits (0, 0)                    │
+     │                                                                         │
+     │ Control Mapping                                                         │
+     │                                                                         │
+     │ // On any joystick/slider change:                                       │
+     │ let controlX = Int8(clamping: Int(joystick.x * 100))                    │
+     │ let controlY = Int8(clamping: Int(joystick.y * 100))                    │
+     │ let speed    = UInt8(sliderValue * 255)   // sliderValue: 0.0–1.0       │
+     │ ble.sendControl(x: controlX, y: controlY, speed: speed)                 │
+     │                                                                         │
+     │ Joystick magnitude (partial deflection) scales the x/y values           │
+     │ proportionally. Speed slider is a separate max-speed cap; the ESP       │
+     │ multiplies its own PWM by (|vector| * speed / 100).                     │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Confirmed Design Decisions                                              │
+     │                                                                         │
+     │ - App name: "MEMARO Controller"                                         │
+     │ - Joystick + speed: Proportional — speed_sent = sliderValue ×           │
+     │ joystickMagnitude × 255                                                 │
+     │ - BLE UX: Device picker — scan results list, tap to connect             │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Execution Phases                                                        │
+     │                                                                         │
+     │ Phase 1 — Firmware                                                      │
+     │                                                                         │
+     │ Rewrite ESP32_control/ESP32_control.ino for BLE using NimBLE-Arduino:   │
+     │ - Remove GPIO 4, 21, 0 (potentiometer + buttons)                        │
+     │ - Keep all permanent pins (19, 16, 17, 25, 26) unchanged                │
+     │ - Implement GATT server: advertise service UUID, control characteristic │
+     │  (Write Without Response), feedback characteristic (Notify)             │
+     │ - Parse incoming 3-byte control packet → set PWM, direction, enable     │
+     │ - Notify feedback characteristic with 4-byte RPM + current packet every │
+     │  50 ms                                                                  │
+     │                                                                         │
+     │ Phase 2 — iOS Scaffold + BLE Manager                                    │
+     │                                                                         │
+     │ Create the Xcode project and wire up CoreBluetooth:                     │
+     │ - MEMARO Controller.xcodeproj with Info.plist (landscape lock +         │
+     │ NSBluetoothAlwaysUsageDescription)                                      │
+     │ - BLEManager.swift — @MainActor ObservableObject, scan, device picker   │
+     │ list, connect/disconnect, sendControl() with 50 ms throttle, feedback   │
+     │ notify handler                                                          │
+     │ - ContentView.swift — placeholder layout (three columns: joystick       │
+     │ placeholder | feedback + BLE picker | speed slider)                     │
+     │ - App builds and connects to the rover; feedback values update on       │
+     │ screen                                                                  │
+     │                                                                         │
+     │ Phase 3 — Joystick UI                                                   │
+     │                                                                         │
+     │ Replace the joystick placeholder with the full JoystickView:            │
+     │ - Circular drag zone, knob clamped to radius                            │
+     │ - Dead zone 0.15, snap-back on release                                  │
+     │ - GeometryReader-driven sizing (min(width × 0.35, height × 0.85))       │
+     │ - Wired to BLEManager.sendControl() with proportional speed mapping     │
+     │ - FeedbackView polish (RPM + current gauges)                            │
+     ╰─────────────────────────────────────────────────────────────────────────╯
+
+❯ ok so we're rewriting ESP32_control.ino - read CLAUDE.md first before         
+  touching anything.                                                            
+                                                                                
+  basically replacing the pot and buttons with nimble BLE. keep all the         
+  output pins exactly as they are (19, 16, 17) and the feedback ADC reads       
+  on 25 and 26. rip out GPIO4, GPIO21 and GPIO0 entirely.                       
+                                                                                
+  BLE setup:                                                                    
+  - nimble-arduino only, not ESP32 BLE arduino                                  
+  - service UUID: 4FAFC201-1FB5-459E-8FCC-C5C9C331914B                          
+  - control characteristic BEB5483E-36E1-4688-B7F5-EA07361B26A8, write          
+    without response, 3 bytes: x (int8 -100 to 100), y (int8 -100 to 100),      
+    speed (uint8 0-255)                                                         
+  - feedback characteristic 1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F1234, notify,       
+    4 bytes every 50ms: RPM as uint16 big endian then current in milliamps      
+    as uint16 big endian                                                        
+                                                                                
+  really important - on disconnect PWM goes to 0 and GPIO16 goes LOW            
+  immediatley. motor cant keep running if BLE drops. also nil the connection    
+  state before allowing reconnect.                                              
+                                                                                
+  speed byte maps straight to PWM 0-255. x and y handle direction. stub         
+  out differential drive as a comment, dont implement it yet.                   
+                                                                                
+  show me the plan before writing anything                                      
+  Read 2 files (ctrl+o to expand)
+
+⏺ Here's what the rewrite does, section by section — no code written yet.
+
+  ---
+  Plan
+
+  What's removed
+
+  - POT_PIN (GPIO4), EN_TOGGLE_PIN (GPIO21), DIR_TOGGLE_PIN (GPIO0) — defines,
+  pinMode, all reads
+  - Debounce variables: lastEnBtn, lastDirBtn, lastEnTime, lastDirTime,
+  DEBOUNCE_MS
+  - Both button-polling blocks in loop()
+  - adcAverage(POT_PIN) call and map() to PWM
+
+  What's kept unchanged
+
+  - MAX_CURRENT, MAX_RPM, ADC_FULLSCALE, PWM_FREQ, PWM_RES, AVG_SAMPLES
+  - PWM_PIN 19, DIR_PIN 17, EN_OUT_PIN 16, ANOUT1_PIN 25, ANOUT2_PIN 26
+  - adcAverage() function — still used for feedback
+  - Feedback reads, scaling, and Serial print in loop()
+  - delay(50) cadence
+
+  What's added
+
+  NimBLE globals:
+  NimBLEServer* pServer = nullptr;
+  NimBLECharacteristic* pFeedbackChar = nullptr;
+  bool bleConnected = false;
+
+  ServerCallbacks (onConnect / onDisconnect):
+  - onConnect → GPIO16 HIGH, motorEnabled = true, set bleConnected = true
+  - onDisconnect → ledcWrite(PWM_PIN, 0) then GPIO16 LOW then bleConnected = 
+  false, motorEnabled = false, restart advertising. PWM zeroed before enable
+  pulled low — motor stops cleanly.
+
+  ControlCallbacks::onWrite (3-byte packet):
+  - Parses x (int8), y (int8), speed (uint8)
+  - y > 0 → GPIO17 LOW (CW / forward); y < 0 → GPIO17 HIGH (CCW / backward); y 
+  == 0 → no direction change
+  - ledcWrite(PWM_PIN, speed) — speed byte straight to PWM
+  - x is received but not acted on: // TODO: differential drive — map x/y to 
+  per-motor speeds
+
+  setup():
+  - NimBLEDevice::init("MEMARO")
+  - Create server + service + control char (WRITE_NR) + feedback char (NOTIFY)
+  - pService->start() → NimBLEDevice::startAdvertising()
+  - Output pins set same as before (EN_OUT_PIN LOW, DIR_PIN HIGH, PWM 0)
+
+  loop() additions:
+  - If bleConnected: pack 4-byte feedback payload (RPM uint16 BE, milliamps
+  uint16 BE), setValue + notify()
+  - Serial line now prefixed with BLE: CONN or BLE: ADV for visibility
+
+  ---
+  One thing to confirm before I write
+
+  When y == 0 (joystick centred), the speed byte will already be 0 (the iOS app
+  sends magnitude × slider), so the motor stops via PWM. I'm leaving DIR_PIN
+  unchanged in that case. That's fine — agreed?
+
+✻ Churned for 1m 20s
+
+❯ ctually on connect keep GPIO16 LOW and motorEnabled false -                   
+  enable the motor on first non-zero command instead. safer default.            
+  then proceed                                                                  
+
+⏺ Good call. That changes onConnect to just flip bleConnected = true and nothing
+   else, and the enable logic moves into onWrite: when speed > 0 and the motor
+  isn't yet enabled, set GPIO16 HIGH then write PWM. Here's the file:
+
+⏺ Write(ESP32_control/ESP32_control.ino)
+  ⎿  Added 121 lines, removed 75 lines
+        1 -// ── Feedback scaling definitions ───────────────────────────
+          -──────────────────                                            
+        2 -#define MAX_CURRENT  1.0f    // Amps at 3.3V (AnOUT1 full scal
+          -e)                                                            
+        3 -#define MAX_RPM      5260    // RPM at 3.3V (AnOUT2 full scale
+          -)                                                             
+        4 -#define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V) 
+        1 +// ── Feedback scaling ───────────────────────────────────────
+          +───────────────────                                           
+        2 +#define MAX_CURRENT   1.0f   // Amps at 3.3 V (AnOUT1 full sca
+          +le)                                                           
+        3 +#define MAX_RPM       5260   // RPM  at 3.3 V (AnOUT2 full sca
+          +le)                                                           
+        4 +#define ADC_FULLSCALE 4095   // 12-bit ADC max (= 3.3 V)      
+        5  
+        6  // ── Pin definitions ────────────────────────────────────────
+           ───────────────────
+        7 -// NOTE: GPIO12 (potentiometer) is temporal — for bench testin
+          -g only.                                                       
+        8 -//       Long-term, speed setpoint should be received via Blue
+          -tooth.                                                        
+        9 -#define POT_PIN      4  // Potentiometer ADC input (0–3.3V → 0
+          -–100% PWM)                                                    
+        7 +#define PWM_PIN    19   // PWM speed output  (20 kHz, 8-bit)  
+        8 +#define DIR_PIN    17   // Direction output   HIGH=CCW, LOW=CW
+        9 +#define EN_OUT_PIN 16   // Enable output      HIGH=enabled, LO
+          +W=disabled                                                    
+       10 +#define ANOUT1_PIN 25   // AnOUT1: current feedback ADC input 
+       11 +#define ANOUT2_PIN 26   // AnOUT2: speed feedback ADC input   
+       12  
+       11 -#define PWM_PIN     19  // PWM speed control output to motor d
+          -river                                                         
+       12 -#define DIR_PIN     17  // Direction output to motor driver (H
+          -IGH=CCW, LOW=CW)                                              
+       13 -#define EN_OUT_PIN  16  // Enable output to motor driver (HIGH
+          -=enabled, LOW=disabled)                                       
+       14 -#define ANOUT1_PIN  25  // AnOUT1: current feedback ADC input 
+       15 -#define ANOUT2_PIN  26  // AnOUT2: speed feedback ADC input   
+       13 +// ── PWM config (ESP32 Arduino core v3.x LEDC API) ──────────
+          +──────────────────                                            
+       14 +#define PWM_FREQ 20000  // 20 kHz                             
+       15 +#define PWM_RES  8      // 8-bit resolution (0–255)           
+       16  
+       17 -// NOTE: GPIO21 (enable toggle) and GPIO0 (direction toggle) a
+          -re temporal —                                                 
+       18 -//       physical buttons for bench testing only.             
+       19 -//       GPIO18 avoided — VSPI_CLK, causes reboot when pulled 
+          -LOW on most boards.                                           
+       20 -#define EN_TOGGLE_PIN  21  // Button input: toggles motor enab
+          -le on each press                                              
+       21 -#define DIR_TOGGLE_PIN  0  // IO0 button input: toggles motor 
+          -direction on each press                                       
+       17 +// ── ADC averaging ──────────────────────────────────────────
+          +───────────────────                                           
+       18 +#define AVG_SAMPLES 16                                        
+       19  
+       23 -// ── PWM config ─────────────────────────────────────────────
+          -───────────────────                                           
+       24 -// Using ESP32 Arduino core v3.x LEDC API (ledcAttach / ledcWr
+          -ite by pin)                                                   
+       25 -#define PWM_FREQ  20000  // 20 kHz                            
+       26 -#define PWM_RES   8      // 8-bit resolution (0–255)          
+       20 +// ── BLE UUIDs ──────────────────────────────────────────────
+          +───────────────────                                           
+       21 +#define SERVICE_UUID   "4FAFC201-1FB5-459E-8FCC-C5C9C331914B" 
+       22 +#define CTRL_CHAR_UUID "BEB5483E-36E1-4688-B7F5-EA07361B26A8" 
+          + // Write NR                                                  
+       23 +#define FB_CHAR_UUID   "1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F1234" 
+          + // Notify                                                    
+       24  
+       28 -// ── ADC averaging ──────────────────────────────────────────
+          -───────────────────                                           
+       29 -#define AVG_SAMPLES  16                                       
+       25 +#include <NimBLEDevice.h>                                     
+       26  
+       27  // ── State ──────────────────────────────────────────────────
+           ───────────────────
+       32 -bool motorEnabled  = false;                                   
+       33 -bool dirCCW        = true;   // true = CCW (dir1), false = CW 
+          -(dir2)                                                        
+       28 +static bool motorEnabled = false;                             
+       29 +static bool dirCCW       = true;   // true = CCW (GPIO17 HIGH)
+       30 +static bool bleConnected = false;                             
+       31  
+       35 -#define DEBOUNCE_MS  50  // ms to wait before registering a bu
+          -tton press                                                    
+       32 +static NimBLECharacteristic* pFeedbackChar = nullptr;         
+       33  
+       37 -bool lastEnBtn  = HIGH;                                       
+       38 -bool lastDirBtn = HIGH;                                       
+       34 +// ───────────────────────────────────────────────────────────
+          +──────────────────                                            
+       35 +static void motorStop() {                                     
+       36 +  ledcWrite(PWM_PIN, 0);                                      
+       37 +  digitalWrite(EN_OUT_PIN, LOW);                              
+       38 +  motorEnabled = false;                                       
+       39 +}                                                             
+       40  
+       40 -unsigned long lastEnTime  = 0;                                
+       41 -unsigned long lastDirTime = 0;                                
+       41 +// ───────────────────────────────────────────────────────────
+          +──────────────────                                            
+       42 +class ServerCallbacks : public NimBLEServerCallbacks {        
+       43 +  void onConnect(NimBLEServer*) override {                    
+       44 +    // GPIO16 stays LOW; motor stays disabled until first non-
+          +zero command                                                  
+       45 +    bleConnected = true;                                      
+       46 +    Serial.println("BLE connected — awaiting first command"); 
+       47 +  }                                                           
+       48  
+       49 +  void onDisconnect(NimBLEServer*) override {                 
+       50 +    motorStop();   // PWM → 0, GPIO16 LOW, motorEnabled = fals
+          +e                                                             
+       51 +    bleConnected = false;                                     
+       52 +    Serial.println("BLE disconnected — motor stopped");       
+       53 +    NimBLEDevice::startAdvertising();                         
+       54 +  }                                                           
+       55 +};                                                            
+       56 +                                                              
+       57  // ───────────────────────────────────────────────────────────
+           ──────────────────
+       44 -int adcAverage(int pin) {                                     
+       45 -  long sum = 0;                                               
+       46 -  for (int i = 0; i < AVG_SAMPLES; i++) {                     
+       47 -    sum += analogRead(pin);                                   
+       58 +class ControlCallbacks : public NimBLECharacteristicCallbacks 
+          +{                                                             
+       59 +  void onWrite(NimBLECharacteristic* pChar) override {        
+       60 +    NimBLEAttValue val = pChar->getValue();                   
+       61 +    if (val.length() < 3) return;                             
+       62 +                                                              
+       63 +    int8_t  x     = (int8_t)val[0];   // left/right  –100…100 
+       64 +    int8_t  y     = (int8_t)val[1];   // fwd/back    –100…100 
+       65 +    uint8_t speed = val[2];            // PWM duty    0…255   
+       66 +                                                              
+       67 +    // TODO: differential drive — map x/y to independent left/
+          +right motor                                                   
+       68 +    //       speeds once second motor is wired (x currently un
+          +used).                                                        
+       69 +    (void)x;                                                  
+       70 +                                                              
+       71 +    // Direction from y; no change when y == 0 (speed will be 
+          +0 anyway)                                                     
+       72 +    if (y > 0) {                                              
+       73 +      dirCCW = false;                                         
+       74 +      digitalWrite(DIR_PIN, LOW);   // CW  = forward          
+       75 +    } else if (y < 0) {                                       
+       76 +      dirCCW = true;                                          
+       77 +      digitalWrite(DIR_PIN, HIGH);  // CCW = backward         
+       78 +    }                                                         
+       79 +                                                              
+       80 +    // Enable motor on first non-zero speed command           
+       81 +    if (speed > 0 && !motorEnabled) {                         
+       82 +      digitalWrite(EN_OUT_PIN, HIGH);                         
+       83 +      motorEnabled = true;                                    
+       84 +    }                                                         
+       85 +                                                              
+       86 +    ledcWrite(PWM_PIN, speed);                                
+       87 +                                                              
+       88 +    // Disable if commanded to stop (keeps GPIO16 LOW until ne
+          +xt non-zero command)                                          
+       89 +    if (speed == 0 && motorEnabled) {                         
+       90 +      digitalWrite(EN_OUT_PIN, LOW);                          
+       91 +      motorEnabled = false;                                   
+       92 +    }                                                         
+       93    }
+       49 -  return sum / AVG_SAMPLES;                                   
+       94 +};                                                            
+       95 +                                                              
+       96 +// ───────────────────────────────────────────────────────────
+          +──────────────────                                            
+       97 +static int adcAverage(int pin) {                              
+       98 +  long sum = 0;                                               
+       99 +  for (int i = 0; i < AVG_SAMPLES; i++) sum += analogRead(pin)
+          +;                                                             
+      100 +  return (int)(sum / AVG_SAMPLES);                            
+      101  }
+      102  
+      103 +// ───────────────────────────────────────────────────────────
+          +──────────────────                                            
+      104  void setup() {
+      105    Serial.begin(115200);
+      106  
+       55 -  pinMode(EN_TOGGLE_PIN,  INPUT_PULLUP);                      
+       56 -  pinMode(DIR_TOGGLE_PIN, INPUT_PULLUP);                      
+      107    pinMode(DIR_PIN,    OUTPUT);
+      108    pinMode(EN_OUT_PIN, OUTPUT);
+       59 -  digitalWrite(EN_OUT_PIN, LOW);  // Default: disabled        
+      109 +  digitalWrite(EN_OUT_PIN, LOW);   // disabled until first com
+          +mand                                                          
+      110 +  digitalWrite(DIR_PIN,    HIGH);  // default: CCW            
+      111  
+      112    ledcAttach(PWM_PIN, PWM_FREQ, PWM_RES);
+       62 -                                                              
+      113    ledcWrite(PWM_PIN, 0);
+       64 -  digitalWrite(DIR_PIN, HIGH);  // Default: CCW               
+      114  
+      115 +  NimBLEDevice::init("MEMARO");                               
+      116 +  NimBLEServer* pServer = NimBLEDevice::createServer();       
+      117 +  pServer->setCallbacks(new ServerCallbacks());               
+      118  
+       67 -}                                                             
+      119 +  NimBLEService* pService = pServer->createService(SERVICE_UUI
+          +D);                                                           
+      120  
+       69 -void loop() {                                                 
+       70 -  // ── Enable toggle (GPIO21 external button) ───────────────
+          -─────────────────                                             
+       71 -  // Wire an external button between GPIO21 and GND. The board
+          -'s physical EN/RST                                            
+       72 -  // button is unrelated and should not be used — it resets th
+          -e chip in hardware.                                           
+       73 -  bool enBtn = digitalRead(EN_TOGGLE_PIN);                    
+       74 -  if (enBtn == LOW && lastEnBtn == HIGH && (millis() - lastEnT
+          -ime > DEBOUNCE_MS)) {                                         
+       75 -    motorEnabled = !motorEnabled;                             
+       76 -    lastEnTime = millis();                                    
+       77 -    digitalWrite(EN_OUT_PIN, motorEnabled ? HIGH : LOW);      
+       78 -    Serial.print("Enable: "); Serial.println(motorEnabled ? "O
+          -N" : "OFF");                                                  
+       79 -  }                                                           
+       80 -  lastEnBtn = enBtn;                                          
+      121 +  NimBLECharacteristic* pCtrlChar = pService->createCharacteri
+          +stic(                                                         
+      122 +    CTRL_CHAR_UUID, NIMBLE_PROPERTY::WRITE_NR);               
+      123 +  pCtrlChar->setCallbacks(new ControlCallbacks());            
+      124  
+       82 -  // ── Direction toggle (IO0 button) ────────────────────────
+          -──────────────────                                            
+       83 -  bool dirBtn = digitalRead(DIR_TOGGLE_PIN);                  
+       84 -  if (dirBtn == LOW && lastDirBtn == HIGH && (millis() - lastD
+          -irTime > DEBOUNCE_MS)) {                                      
+       85 -    dirCCW = !dirCCW;                                         
+       86 -    digitalWrite(DIR_PIN, dirCCW ? HIGH : LOW);  // HIGH=CCW, 
+          -LOW=CW                                                        
+       87 -    lastDirTime = millis();                                   
+       88 -    Serial.print("Direction: "); Serial.println(dirCCW ? "CCW"
+          - : "CW");                                                     
+       89 -  }                                                           
+       90 -  lastDirBtn = dirBtn;                                        
+      125 +  pFeedbackChar = pService->createCharacteristic(             
+      126 +    FB_CHAR_UUID, NIMBLE_PROPERTY::NOTIFY);                   
+      127  
+       92 -  // ── PWM from potentiometer (only when enabled) ───────────
+          -──────────────────                                            
+       93 -  if (motorEnabled) {                                         
+       94 -    int potRaw  = adcAverage(POT_PIN);                        
+       95 -    int pwmDuty = map(potRaw, 0, ADC_FULLSCALE, 0, 255);      
+       96 -    ledcWrite(PWM_PIN, pwmDuty);                              
+       97 -  } else {                                                    
+       98 -    ledcWrite(PWM_PIN, 0);                                    
+       99 -  }                                                           
+      128 +  pService->start();                                          
+      129 +  NimBLEDevice::startAdvertising();                           
+      130 +  Serial.println("BLE advertising as MEMARO");                
+      131 +}                                                             
+      132  
+      101 -  // ── Feedback readings ────────────────────────────────────
+          -──────────────────                                            
+      133 +// ───────────────────────────────────────────────────────────
+          +──────────────────                                            
+      134 +void loop() {                                                 
+      135    int   currentRaw = adcAverage(ANOUT1_PIN);
+      136    float currentA   = (currentRaw / (float)ADC_FULLSCALE) * MAX
+           _CURRENT;
+      137  
+      138    int   speedRaw   = adcAverage(ANOUT2_PIN);
+      106 -  float speedRPM   = (speedRaw / (float)ADC_FULLSCALE) * MAX_R
+          -PM;                                                           
+      139 +  float speedRPM   = (speedRaw  / (float)ADC_FULLSCALE) * MAX_
+          +RPM;                                                          
+      140  
+      108 -  Serial.print("En: ");       Serial.print(motorEnabled ? "ON 
+          -" : "OFF");                                                   
+      109 -  Serial.print(" | Dir: ");   Serial.print(dirCCW ? "CCW" : "C
+          -W ");                                                         
+      110 -  Serial.print(" | Speed: "); Serial.print(speedRPM, 0); Seria
+          -l.print(" RPM");                                              
+      141 +  if (bleConnected && pFeedbackChar != nullptr) {             
+      142 +    uint16_t rpmInt    = (uint16_t)speedRPM;                  
+      143 +    uint16_t currentMA = (uint16_t)(currentA * 1000.0f);      
+      144 +                                                              
+      145 +    uint8_t payload[4] = {                                    
+      146 +      (uint8_t)(rpmInt    >> 8), (uint8_t)(rpmInt    & 0xFF), 
+      147 +      (uint8_t)(currentMA >> 8), (uint8_t)(currentMA & 0xFF)  
+      148 +    };                                                        
+      149 +    pFeedbackChar->setValue(payload, 4);                      
+      150 +    pFeedbackChar->notify();                                  
+      151 +  }                                                           
+      152 +                                                              
+      153 +  Serial.print("BLE: "); Serial.print(bleConnected ? "CONN" : 
+          +"ADV ");                                                      
+      154 +  Serial.print(" | En: ");      Serial.print(motorEnabled ? "O
+          +N " : "OFF");                                                 
+      155 +  Serial.print(" | Dir: ");     Serial.print(dirCCW ? "CCW" : 
+          +"CW ");                                                       
+      156 +  Serial.print(" | Speed: ");   Serial.print(speedRPM, 0); Ser
+          +ial.print(" RPM");                                            
+      157    Serial.print(" | Current: "); Serial.print(currentA, 3); Ser
+           ial.println(" A");
+      158  
+      159    delay(50);
+
+❯ yeah looks good, GPIo16 staying LOW until first non zero speeed comand is     
+  good and safe                                                                 
+
+⏺ Good. Let me save that safety pattern to memory so it doesn't get
+  second-guessed later.
+
+  Recalled 1 memory, wrote 2 memories (ctrl+o to expand)
+
+⏺ Firmware phase is done. Ready for Phase 2 — iOS scaffold + BLE manager —
+  whenever you prompt it.
+
+✻ Cogitated for 56s
+
+❯ right r                                                                       
+  lets build the ios app inside ios-app/. read CLAUDE.md before starting.       
+                                                                                
+  scaffold first:                                                               
+  - app name MEMARO Controller                                                  
+  - swiftui, ios 16 min, no packages                                            
+  - landscape only via UISupportedInterfaceOrientations in info.plist           
+  - NSBluetoothAlwaysUsageDescription in info.plist - "MEMARO Controller        
+    uses Bluetooth to connect to the rover."                                    
+                                                                                
+  then BLEManager.swift:                                                        
+  - @MainActor final class, ObservableObject                                    
+  - published vars: isConnected, isScanning, peripherals, rpm, currentA         
+  - scan to device picker to connect to discover services flow                  
+  - store controlCharacteristic and feedbackCharacteristic as optionals         
+  - on disconnect - nil both characteristics first, then isConnected false,     
+    then restart scan. that order matters, dont change it                       
+  - sendCommand func takes x int8, y int8, speed uint8, builds 3 byte Data,     
+    writes without response                                                     
+  - feedback notify handler parses 4 bytes - first two uint16 big endian is     
+    rpm, last two is milliamps, divide by 1000 for currentA                     
+  - UUIDs as static lets at top, must match CLAUDE.md exactly                   
+                                                                                
+  show me the plan before any code                                              
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Here's the full plan — nothing written yet.
+
+  ---
+  Scaffold
+
+  Files to create:
+
+  ios-app/
+  ├── MEMARO Controller.xcodeproj/
+  │   └── project.pbxproj          — Xcode project, iOS 16 min, SwiftUI
+  lifecycle
+  └── MEMARO Controller/
+      ├── MEMAROControllerApp.swift — @main, injects BLEManager as
+  environmentObject
+      ├── ContentView.swift         — placeholder 3-column landscape layout
+      ├── BLEManager.swift          — all BLE logic
+      ├── Assets.xcassets/
+      │   └── Contents.json
+      └── Info.plist
+
+  Info.plist keys:
+  - UISupportedInterfaceOrientations → [UIInterfaceOrientationLandscapeLeft, 
+  UIInterfaceOrientationLandscapeRight]
+  - UISupportedInterfaceOrientations~ipad → same (iPad needs its own key or it
+  ignores the phone key)
+  - NSBluetoothAlwaysUsageDescription → "MEMARO Controller uses Bluetooth to 
+  connect to the rover."
+
+  ---
+  BLEManager.swift
+
+  UUIDs — static lets at top, matching CLAUDE.md exactly:
+  static let serviceUUID  = CBUUID(string:
+  "4FAFC201-1FB5-459E-8FCC-C5C9C331914B")
+  static let controlUUID  = CBUUID(string:
+  "BEB5483E-36E1-4688-B7F5-EA07361B26A8")
+  static let feedbackUUID = CBUUID(string:
+  "1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F1234")
+
+  Class signature:
+  @MainActor
+  final class BLEManager: NSObject, ObservableObject,
+                          CBCentralManagerDelegate, CBPeripheralDelegate
+
+  Published state:
+  @Published var isConnected: Bool = false
+  @Published var isScanning:  Bool = false
+  @Published var peripherals: [CBPeripheral] = []
+  @Published var rpm:         Int    = 0
+  @Published var currentA:    Double = 0.0
+
+  Private storage:
+  private var central:                CBCentralManager!
+  private var connectedPeripheral:    CBPeripheral?
+  private var controlCharacteristic:  CBCharacteristic?
+  private var feedbackCharacteristic: CBCharacteristic?
+  CBCentralManager initialised with delegate: self, queue: .main — no dispatch
+  needed since we're already @MainActor.
+
+  Scan → pick → connect → discover flow:
+  1. startScan() — calls central.scanForPeripherals(withServices: 
+  [serviceUUID]), sets isScanning = true, clears peripherals
+  2. didDiscover delegate — appends to peripherals (deduped by identifier)
+  3. connect(_ peripheral: CBPeripheral) — stopScan(),
+  central.connect(peripheral)
+  4. didConnect → peripheral.discoverServices([serviceUUID])
+  5. didDiscoverServices → peripheral.discoverCharacteristics([controlUUID, 
+  feedbackUUID], for: service)
+  6. didDiscoverCharacteristics → stores each into controlCharacteristic /
+  feedbackCharacteristic; calls peripheral.setNotifyValue(true, for: 
+  feedbackCharacteristic); sets isConnected = true
+
+  Disconnect — exact order as specified:
+  // In didDisconnectPeripheral and any manual disconnect:
+  controlCharacteristic  = nil   // 1
+  feedbackCharacteristic = nil   // 2
+  isConnected            = false // 3
+  startScan()                    // 4 — restart scan for reconnect
+
+  sendCommand(x: Int8, y: Int8, speed: UInt8):
+  guard let char = controlCharacteristic,
+        let peripheral = connectedPeripheral else { return }
+  var payload = Data([UInt8(bitPattern: x), UInt8(bitPattern: y), speed])
+  peripheral.writeValue(payload, for: char, type: .withoutResponse)
+
+  Feedback notify handler:
+  // didUpdateValueFor:
+  guard data.count >= 4 else { return }
+  rpm      = Int((UInt16(data[0]) << 8) | UInt16(data[1]))
+  currentA = Double((UInt16(data[2]) << 8) | UInt16(data[3])) / 1000.0
+
+  ---
+  ContentView.swift (placeholder)
+
+  Three-column HStack filling the safe area:
+  - Left (~35% width): grey rounded rect labelled "Joystick — Phase 3"
+  - Centre (flexible): RPM + current labels reading from BLE manager, plus
+  device picker list (scrollable List of peripherals, tap calls
+  ble.connect(peripheral)) or "Connected to (name)" + disconnect button
+  - Right (~80pt wide): vertical Slider for speed (0–1), labelled "Speed"
+
+  ---
+  One question before I write: should ContentView own the speed @State var 
+  speed: Double = 0 and pass it down, or should BLEManager own it as a
+  @Published var speed: Double? My preference is @State in the view — speed is
+  UI state, not BLE state — but confirm if you'd rather it live in the manager.
+
+✻ Sautéed for 49s
+
+※ recap: Building a BLE iOS app to control the MEMARO rover. Firmware is done. Waiting on confirmation of where speed state lives before writing the iOS scaffold and BLEManager. (disable recaps in /config)
+
+❯ yeah speed as @State in the view makes sense, its UI state                    
+  not BLE state. proceed                                                        
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ /export                                                                       
+  ⎿  Conversation copied to clipboard
+
+❯ sorry hit ctrl c by accident, continue with the plan as approved              
+
+⏺ Writing all files now.
+
+  Listed 1 directory (ctrl+o to expand)
+
+⏺ Empty — good. Writing all files in parallel.
+
+⏺ Write(ios-app/MEMARO Controller.xcodeproj/project.pbxproj)
+  ⎿  Wrote 282 lines to ios-app/MEMARO Controller.xcodeproj/project.pbxproj
+       2 {/ !$*UTF8*$!
+       3        archiveVersion = 1;
+       4        classes = {
+       6        objectVersion = 56;
+       7        objects = {
+       8 
+      10                AABBCCDD000000000000000B /* MEMAROControllerApp.swift in Sources
+
+          */ = {isa = PBXBuildFile; fileRef = AABBCCDD000000000000000A /*
+          MEMAROControllerApp.swift */; };
+     … +298 lines (ctrl+o to expand)
+
+⏺ Write(ios-app/MEMARO Controller/Info.plist)
+  ⎿  Wrote 27 lines to ios-app/MEMARO Controller/Info.plist
+       2 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www
+         .apple.com/DTDs/PropertyList-1.0.dtd">
+       3 <plist version="1.0">
+       5        <key>NSBluetoothAlwaysUsageDescription</key>
+       6        <string>MEMARO Controller uses Bluetooth to connect to the rover
+
+       7        <key>UIApplicationSceneManifest</key>
+       8        <dict>
+       9                <key>UIApplicationSupportsMultipleScenes</key>
+      10                <false/>
+     … +19 lines (ctrl+o to expand)
+
+❯ good that you kept ipad orientation key separate,keep that in memory          
+
+  Wrote 2 memories (ctrl+o to expand)
+
+⏺ Saved. Continuing with the remaining files.
+⏺ Write(ios-app/MEMARO Controller/Assets.xcassets/Contents.json)
+  ⎿  Wrote 6 lines to ios-app/MEMARO 
+     Controller/Assets.xcassets/Contents.json
+      1 {
+      2   "info" : {
+      3     "author" : "xcode",
+      4     "version" : 1
+      5   }
+      6 }
+
+⏺ Write(ios-app/MEMARO
+       Controller/Assets.xcassets/AppIcon.appiconset/Contents.json)
+  ⎿  Wrote 7 lines to ios-app/MEMARO 
+     Controller/Assets.xcassets/AppIcon.appiconset/Contents.json
+      1 {
+      2   "images" : [],
+      3   "info" : {
+      4     "author" : "xcode",
+      5     "version" : 1
+      6   }
+      7 }
+
+⏺ Write(ios-app/MEMARO Controller/MEMAROControllerApp.swift)
+  ⎿  Wrote 13 lines to ios-app/MEMARO Controller/MEMAROControllerApp.swift
+       1 import SwiftUI
+       2 
+       3 @main
+       4 struct MEMAROControllerApp: App {
+       5     @StateObject private var ble = BLEManager()
+       6 
+       7     var body: some Scene {
+       8         WindowGroup {
+       9             ContentView()
+      10                 .environmentObject(ble)
+     … +3 lines (ctrl+o to expand)
+
+⏺ Write(ios-app/MEMARO Controller/BLEManager.swift)
+  ⎿  Wrote 133 lines to ios-app/MEMARO Controller/BLEManager.swift
+       2 import Foundationoth
+       3 
+       4 @MainActor
+       6 final class BLEManager: NSObject, ObservableObject {
+       7     // MARK: - UUIDs — must match ESP32 firmware exactly
+       8     static let serviceUUID  = CBUUID(string: "4FAFC201-1FB5-459E
+       9     static let controlUUID  = CBUUID(string: "BEB5483E-36E1-4688
+         -B7F5-EA07361B26A8")
+      10     static let feedbackUUID = CBUUID(string: "1C95D5E3-D8F5-4D7F
+         -8B9C-2B7A5C3F1234")
+     … +141 lines (ctrl+o to expand)
+
+❯ good that isConnected only flips true when BOTH characteristics are found,    
+  not just on connect.                                                          
+
+  Wrote 2 memories (ctrl+o to expand)
+
+⏺ Saved. Ready to write ContentView.swift whenever you want to continue.
+
+✻ Crunched for 5m 17s
+
+❯ go ahead                                                                      
+
+⏺ Write(ios-app/MEMARO Controller/ContentView.swift)
+  ⎿  Wrote 138 lines to ios-app/MEMARO Controller/ContentView.swift
+       1 import SwiftUI
+       2 
+       3 struct ContentView: View {
+       4     @EnvironmentObject var ble: BLEManager
+       5     @State private var speed: Double = 0.5
+       6 
+       7     var body: some View {
+       8         GeometryReader { geo in
+       9             HStack(spacing: 0) {
+      10                 joystickPlaceholder(geo: geo)
+     … +138 lines (ctrl+o to expand)
+
+❯ modify @State private var speed: Double = 0.5                                 
+  should be 0.0nstead. don't want rover jumpint go half throttle on connect     
+
+⏺ Update(ios-app/MEMARO Controller/ContentView.swift)
+  ⎿  Added 1 line, removed 1 line
+      2  
+      3  struct ContentView: View {
+      4      @EnvironmentObject var ble: BLEManager
+      5 -    @State private var speed: Double = 0.5                      
+      5 +    @State private var speed: Double = 0.0                      
+      6  
+      7      var body: some View {
+      8          GeometryReader { geo in
+
+⏺ Done. Saving that default too.
+
+  Wrote 2 memories (ctrl+o to expand)
+
+⏺ Phase 2 is complete. Ready for Phase 3 — joystick UI — whenever you prompt it.
+
+✻ Brewed for 34s
+
+❯ ok now the views. check CLAUDE.md for the layout diagram.                     
+                                                                                
+  ContentView - GeometryReader root, three columns landscape:                   
+  - left is the joystick                                                        
+  - centre is rpm and currentA readout, device name, connect button that        
+    opens a scan sheet                                                          
+  - right is a vertical speed slider 0 to 1, default 0                          
+  - BLEManager as environment object                                            
+                                                                                
+  JoystickView:                                                                 
+  - circular track, thumb follows drag clamped to radius                        
+  - outputs x and y as int8 -100 to 100                                         
+  - on drag end snaps back to centre and sends 0 0 0                            
+  - diameter is min(width x 0.35, height x 0.85)                                
+  - dead zone under 5% of radius just ignore it                                 
+                                                                                
+  throttle - dont call sendCommand from the gesture handler directly. use a     
+  Timer at 50ms that reads last known x y speed and fires sendCommand. max      
+  one packet per 50ms                                                           
+                                                                                
+  show me the plan first, again                                                 
+
+⏺ Reading CLAUDE.md layout first, then laying out the plan.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ ---
+  Plan
+
+  Files touched
+
+  ┌────────────────────┬─────────────────────────────────────────────────────┐
+  │        File        │                       Change                        │
+  ├────────────────────┼─────────────────────────────────────────────────────┤
+  │ BLEManager.swift   │ Add pending command state + 50 ms timer             │
+  ├────────────────────┼─────────────────────────────────────────────────────┤
+  │ ContentView.swift  │ Replace placeholder with real layout, wire joystick │
+  │                    │  + slider + scan sheet                              │
+  ├────────────────────┼─────────────────────────────────────────────────────┤
+  │ JoystickView.swift │ New file                                            │
+  └────────────────────┴─────────────────────────────────────────────────────┘
+
+  ---
+  BLEManager additions
+
+  Three non-published vars (no UI binding needed) plus a timer:
+
+  private var pendingX: Int8      = 0
+  private var pendingY: Int8      = 0
+  private var pendingSpeed: UInt8 = 0
+  private var commandTimer: Timer?
+
+  func updateCommand(x: Int8, y: Int8, speed: UInt8) — called by ContentView
+  from gesture and slider onChange; just stores the three values.
+
+  private func startCommandTimer() — called at the end of
+  didDiscoverCharacteristicsFor (same place isConnected = true fires). Schedules
+   a repeating 50 ms Timer:
+
+  Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+      Task { @MainActor [weak self] in
+          guard let self, self.isConnected else { return }
+          self.sendCommand(x: self.pendingX, y: self.pendingY, speed:
+  self.pendingSpeed)
+      }
+  }
+
+  private func stopCommandTimer() — called in didDisconnectPeripheral before the
+   disconnect order runs. Invalidates timer and zeros pending state.
+
+  ---
+  JoystickView.swift
+
+  JoystickView(diameter: CGFloat, onUpdate: @escaping (Int8, Int8) -> Void)
+
+  - @State private var thumbOffset: CGSize = .zero
+  - Outer track: Circle().stroke() at full diameter
+  - Thumb: filled circle, 22% of diameter, offset by thumbOffset
+  - DragGesture(minimumDistance: 0):
+    - onChanged: clamp offset vector to radius, normalise to [–1, 1], dead zone
+  — if magnitude < 0.05 output (0, 0), else scale to Int8 –100…100, call
+  onUpdate, update thumbOffset
+    - onEnded: withAnimation(.easeOut(duration: 0.1)) { thumbOffset = .zero },
+  call onUpdate(0, 0)
+
+  ---
+  ContentView changes
+
+  New state:
+  @State private var lastX: Int8 = 0
+  @State private var lastY: Int8 = 0
+  @State private var showScanSheet = false
+
+  Left column — real JoystickView:
+  JoystickView(diameter: min(geo.size.width * 0.35, geo.size.height * 0.85)) {
+  x, y in
+      lastX = x; lastY = y
+      ble.updateCommand(x: x, y: y, speed: UInt8(speed * 255))
+  }
+
+  Centre column — two telemetry cells (RPM, Amps) + device name label +
+  Connect/Disconnect button. Connect opens the scan sheet.
+
+  Right column — existing vertical speed slider, adds .onChange(of: speed):
+  .onChange(of: speed) { _ in
+      ble.updateCommand(x: lastX, y: lastY, speed: UInt8(speed * 255))
+  }
+  This ensures a slider move alone sends an updated packet on the next timer
+  tick.
+
+  Scan sheet — .sheet(isPresented: $showScanSheet):
+  - Shows ble.peripherals list, tap calls ble.connect(peripheral)
+  - Auto-dismisses: .onChange(of: ble.isConnected) { if $0 { showScanSheet = 
+  false } }
+
+  ---
+  One thing to confirm: when the joystick snaps back to centre on drag end, I
+  call onUpdate(0, 0) which sets lastX = 0, lastY = 0 and calls updateCommand(0,
+   0, speed). Since speed is untouched, the timer will keep sending (0, 0, 
+  currentSpeed) — motor stops moving (ESP gets y=0 → no direction, speed byte is
+   non-zero but y=0 means no drive). That's the intended behaviour since y
+  drives direction and PWM — correct?
+
+✻ Brewed for 2m 30s
+
+❯ no that's not right!! if joystick snaps to centre y=0 but                     
+  speed byte is still non-zero, the ESP32 will still write                      
+  that speed to PWM. motor shouldn't run when joystick is centred               
+  regardless of slider position. when joystick snaps back send                  
+  speed 0 explicitly, not currentSpeed                                          
+
+⏺ Good catch — saving this to memory first, then updating the plan.
+
+  Wrote 2 memories (ctrl+o to expand)
+
+⏺ Updated plan section:
+
+  ---
+  JoystickView gets two callbacks instead of one:
+
+  JoystickView(
+      diameter: ...,
+      onUpdate: @escaping (Int8, Int8) -> Void,   // called during drag
+      onRelease: @escaping () -> Void              // called on drag end
+  )
+
+  onEnded handler in JoystickView:
+  withAnimation(.easeOut(duration: 0.1)) { thumbOffset = .zero }
+  onRelease()   // no x/y/speed arguments — ContentView decides what to send
+
+  ContentView wiring:
+  JoystickView(diameter: diameter) { x, y in
+      lastX = x; lastY = y
+      ble.updateCommand(x: x, y: y, speed: UInt8(speed * 255))
+  } onRelease: {
+      lastX = 0; lastY = 0
+      ble.updateCommand(x: 0, y: 0, speed: 0)   // explicit zero, not 
+  currentSpeed
+  }
+
+  The slider's .onChange only fires when the slider moves, so it doesn't
+  interfere with the release — the next timer tick after release will already
+  have pendingSpeed = 0 until the joystick is touched again.
+
+  ---
+  Shall I proceed with writing the code?
+
+✻ Sautéed for 27s
+
+❯ sure proceed                                                                  
+
+⏺ Writing all three files now.
+  Read 1 file (ctrl+o to expand)
+
+⏺ Write(ios-app/MEMARO Controller/BLEManager.swift)
+  ⎿  Added 42 lines, removed 9 lines
+      10      static let feedbackUUID = CBUUID(string: "1C95D5E3-D8F5-4D7
+          F-8B9C-2B7A5C3F1234")
+      11  
+      12      // MARK: - Published state
+      13 -    @Published var isConnected: Bool         = false           
+      14 -    @Published var isScanning:  Bool         = false           
+      15 -    @Published var peripherals: [CBPeripheral] = []            
+      16 -    @Published var rpm:         Int          = 0               
+      17 -    @Published var currentA:    Double       = 0.0             
+      13 +    @Published var isConnected:          Bool           = false
+      14 +    @Published var isScanning:           Bool           = false
+      15 +    @Published var peripherals:          [CBPeripheral] = []   
+      16 +    @Published var rpm:                  Int            = 0    
+      17 +    @Published var currentA:             Double         = 0.0  
+      18 +    @Published var connectedDeviceName:  String?        = nil  
+      19  
+      19 -    // MARK: - Private                                         
+      20 +    // MARK: - Private — BLE objects                           
+      21      private var central:                CBCentralManager!
+      22      private var connectedPeripheral:    CBPeripheral?
+      23      private var controlCharacteristic:  CBCharacteristic?
+      24      private var feedbackCharacteristic: CBCharacteristic?
+      25  
+      26 +    // MARK: - Private — 50 ms command timer                   
+      27 +    private var pendingX:     Int8   = 0                       
+      28 +    private var pendingY:     Int8   = 0                       
+      29 +    private var pendingSpeed: UInt8  = 0                       
+      30 +    private var commandTimer: Timer?                           
+      31 +                                                               
+      32      override init() {
+      33          super.init()
+      34          central = CBCentralManager(delegate: self, queue: .main
+          )
+     ...
+      60          central.cancelPeripheralConnection(p)
+      61      }
+      62  
+      63 +    func updateCommand(x: Int8, y: Int8, speed: UInt8) {       
+      64 +        pendingX = x; pendingY = y; pendingSpeed = speed       
+      65 +    }                                                          
+      66 +                                                               
+      67 +    // MARK: - Private                                         
+      68 +                                                               
+      69      func sendCommand(x: Int8, y: Int8, speed: UInt8) {
+      70          guard let char       = controlCharacteristic,
+      71                let peripheral = connectedPeripheral else { retur
+          n }
+      72          let payload = Data([UInt8(bitPattern: x), UInt8(bitPatt
+          ern: y), speed])
+      73          peripheral.writeValue(payload, for: char, type: .withou
+          tResponse)
+      74      }
+      75 +                                                               
+      76 +    private func startCommandTimer() {                         
+      77 +        commandTimer?.invalidate()                             
+      78 +        commandTimer = Timer.scheduledTimer(withTimeInterval: 0
+         +.05, repeats: true) { [weak self] _ in                         
+      79 +            Task { @MainActor [weak self] in                   
+      80 +                guard let self, self.isConnected else { return 
+         +}                                                              
+      81 +                self.sendCommand(x: self.pendingX, y: self.pend
+         +ingY, speed: self.pendingSpeed)                                
+      82 +            }                                                  
+      83 +        }                                                      
+      84 +    }                                                          
+      85 +                                                               
+      86 +    private func stopCommandTimer() {                          
+      87 +        commandTimer?.invalidate()                             
+      88 +        commandTimer = nil                                     
+      89 +        pendingX = 0; pendingY = 0; pendingSpeed = 0           
+      90 +    }                                                          
+      91  }
+      92  
+      93  // MARK: - CBCentralManagerDelegate
+     ...
+      106      }
+      107  
+      108      func centralManager(_ central: CBCentralManager, didConnec
+           t peripheral: CBPeripheral) {
+      109 +        connectedDeviceName = peripheral.name                 
+      110          peripheral.discoverServices([BLEManager.serviceUUID])
+      111      }
+      112  
+      113      func centralManager(_ central: CBCentralManager,
+      114                          didDisconnectPeripheral peripheral: CB
+           Peripheral,
+      115                          error: Error?) {
+       86 -        controlCharacteristic  = nil   // 1 — nil characterist
+          -ics first                                                     
+      116 +        stopCommandTimer()             // stop timer before to
+          +uching any state                                              
+      117 +        controlCharacteristic  = nil   // 1                   
+      118          feedbackCharacteristic = nil   // 2
+       88 -        isConnected            = false // 3 — then clear conne
+          -ction flag                                                    
+      119 +        isConnected            = false // 3                   
+      120 +        connectedDeviceName    = nil                          
+      121          connectedPeripheral    = nil
+       90 -        startScan()                    // 4 — restart scan for
+          - reconnect                                                    
+      122 +        startScan()                    // 4                   
+      123      }
+      124  }
+      125  
+     ...
+      150          }
+      151          if controlCharacteristic != nil && feedbackCharacteris
+           tic != nil {
+      152              isConnected = true
+      153 +            startCommandTimer()                               
+      154          }
+      155      }
+      156  
+
+⏺ Write(ios-app/MEMARO Controller/JoystickView.swift)
+  ⎿  Wrote 69 lines to ios-app/MEMARO Controller/JoystickView.swift
+       2 import SwiftUI
+       3 struct JoystickView: View {
+       4     let diameter: CGFloat
+       5     let onUpdate:  (Int8, Int8) -> Void   // called every drag c
+         hange
+         — caller must send speed 0oid             // called on drag end 
+       7 
+       8     @State private var thumbOffset: CGSize = .zero
+       9 
+      10     private var radius:        CGFloat { diameter / 2 }
+     … +71 lines (ctrl+o to expand)
+
+⏺ Write(ios-app/MEMARO Controller/ContentView.swift)
+  ⎿  Added 103 lines, removed 57 lines
+       2  
+       3  struct ContentView: View {
+       4      @EnvironmentObject var ble: BLEManager
+       5 -    @State private var speed: Double = 0.0                     
+       5  
+       6 +    @State private var speed:  Double = 0.0                    
+       7 +    @State private var lastX:  Int8   = 0                      
+       8 +    @State private var lastY:  Int8   = 0                      
+       9 +    @State private var showScanSheet = false                   
+      10 +                                                               
+      11      var body: some View {
+      12          GeometryReader { geo in
+      13              HStack(spacing: 0) {
+      10 -                joystickPlaceholder(geo: geo)                  
+      14 +                leftColumn(geo: geo)                           
+      15                  Divider()
+      12 -                centrePanel                                    
+      16 +                centreColumn                                   
+      17                  Divider()
+      14 -                speedPanel(geo: geo)                           
+      18 +                rightColumn(geo: geo)                          
+      19              }
+      20          }
+      21          .preferredColorScheme(.dark)
+      22          .background(Color(.systemBackground))
+      23 +        .sheet(isPresented: $showScanSheet) { scanSheet }      
+      24 +        .onChange(of: ble.isConnected) { connected in          
+      25 +            if connected { showScanSheet = false }             
+      26 +        }                                                      
+      27      }
+      28  
+      21 -    // MARK: - Left: joystick placeholder (Phase 3)            
+      22 -    private func joystickPlaceholder(geo: GeometryProxy) -> som
+         -e View {                                                       
+      23 -        let size = min(geo.size.width * 0.35, geo.size.height *
+         - 0.85)                                                         
+      29 +    // MARK: - Left: joystick                                  
+      30 +                                                               
+      31 +    private func leftColumn(geo: GeometryProxy) -> some View { 
+      32 +        let diameter = min(geo.size.width * 0.35, geo.size.heig
+         +ht * 0.85)                                                     
+      33          return ZStack {
+      25 -            Circle()                                           
+      26 -                .stroke(Color.gray.opacity(0.35), lineWidth: 2)
+      27 -                .frame(width: size, height: size)              
+      28 -            Circle()                                           
+      29 -                .fill(Color.gray.opacity(0.15))                
+      30 -                .frame(width: size * 0.3, height: size * 0.3)  
+      31 -            VStack(spacing: 4) {                               
+      32 -                Spacer()                                       
+      33 -                Text("JOYSTICK")                               
+      34 -                    .font(.caption2)                           
+      35 -                    .foregroundColor(.secondary)               
+      36 -                    .padding(.bottom, 8)                       
+      34 +            JoystickView(diameter: diameter) { x, y in         
+      35 +                lastX = x; lastY = y                           
+      36 +                ble.updateCommand(x: x, y: y, speed: UInt8((spe
+         +ed * 255).rounded()))                                          
+      37 +            } onRelease: {                                     
+      38 +                lastX = 0; lastY = 0                           
+      39 +                ble.updateCommand(x: 0, y: 0, speed: 0)        
+      40              }
+      38 -            .frame(width: size, height: size)                  
+      41          }
+      42          .frame(width: geo.size.width * 0.35)
+      43 +        .frame(maxHeight: .infinity)                           
+      44      }
+      45  
+      43 -    // MARK: - Centre: feedback + BLE picker                   
+      44 -    private var centrePanel: some View {                       
+      46 +    // MARK: - Centre: telemetry + BLE controls                
+      47 +                                                               
+      48 +    private var centreColumn: some View {                      
+      49          VStack(spacing: 0) {
+      46 -            feedbackRow                                        
+      47 -                .padding(.vertical, 16)                        
+      50 +            telemetryRow                                       
+      51 +                .padding(.vertical, 20)                        
+      52              Divider()
+      49 -            bleSection                                         
+      50 -                .padding(.vertical, 12)                        
+      53 +            bleControls                                        
+      54 +                .padding(.vertical, 16)                        
+      55          }
+      52 -        .padding(.horizontal, 16)                              
+      56 +        .padding(.horizontal, 20)                              
+      57          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      58      }
+      59  
+      56 -    private var feedbackRow: some View {                       
+      57 -        HStack(spacing: 40) {                                  
+      58 -            telemetryCell(value: "\(ble.rpm)", unit: "RPM")    
+      59 -            telemetryCell(value: String(format: "%.3f", ble.cur
+         -rentA), unit: "A")                                             
+      60 +    private var telemetryRow: some View {                      
+      61 +        HStack(spacing: 48) {                                  
+      62 +            telemetryCell(                                     
+      63 +                value: "\(ble.rpm)",                           
+      64 +                unit: "RPM",                                   
+      65 +                active: ble.isConnected                        
+      66 +            )                                                  
+      67 +            telemetryCell(                                     
+      68 +                value: String(format: "%.3f", ble.currentA),   
+      69 +                unit: "A",                                     
+      70 +                active: ble.isConnected                        
+      71 +            )                                                  
+      72          }
+      73      }
+      74  
+      63 -    private func telemetryCell(value: String, unit: String) -> 
+         -some View {                                                    
+      64 -        VStack(spacing: 2) {                                   
+      75 +    private func telemetryCell(value: String, unit: String, act
+         +ive: Bool) -> some View {                                      
+      76 +        VStack(spacing: 3) {                                   
+      77              Text(value)
+      66 -                .font(.system(size: 34, weight: .semibold, desi
+         -gn: .monospaced))                                              
+      67 -                .foregroundColor(ble.isConnected ? .primary : .
+         -secondary)                                                     
+      78 +                .font(.system(size: 36, weight: .semibold, desi
+         +gn: .monospaced))                                              
+      79 +                .foregroundColor(active ? .primary : .secondary
+         +)                                                              
+      80 +                .monospacedDigit()                             
+      81              Text(unit)
+      82                  .font(.caption)
+      83                  .foregroundColor(.secondary)
+     ...
+      85      }
+      86  
+      87      @ViewBuilder
+      75 -    private var bleSection: some View {                        
+      88 +    private var bleControls: some View {                       
+      89          if ble.isConnected {
+      90              VStack(spacing: 10) {
+      78 -                Label("Connected", systemImage: "antenna.radiow
+         -aves.left.and.right")                                          
+      91 +                Label(ble.connectedDeviceName ?? "MEMARO",     
+      92 +                      systemImage: "antenna.radiowaves.left.and
+         +.right")                                                       
+      93                      .font(.caption)
+      94                      .foregroundColor(.green)
+      95                  Button("Disconnect") { ble.disconnect() }
+     ...
+      100          } else {
+      101              VStack(spacing: 10) {
+      102                  HStack(spacing: 6) {
+       89 -                    if ble.isScanning {                       
+       90 -                        ProgressView().scaleEffect(0.75)      
+       91 -                    }                                         
+      103 +                    if ble.isScanning { ProgressView().scaleEf
+          +fect(0.75) }                                                  
+      104                      Text(ble.isScanning ? "Scanning…" : "Idle"
+           )
+      105                          .font(.caption)
+      106                          .foregroundColor(.secondary)
+      107                  }
+       96 -                if ble.peripherals.isEmpty {                  
+       97 -                    Text("No rovers found")                   
+       98 -                        .font(.caption2)                      
+       99 -                        .foregroundColor(.secondary)          
+      100 -                } else {                                      
+      101 -                    VStack(spacing: 6) {                      
+      102 -                        ForEach(ble.peripherals, id: \.identif
+          -ier) { peripheral in                                          
+      103 -                            Button(peripheral.name ?? peripher
+          -al.identifier.uuidString) {                                   
+      104 -                                ble.connect(peripheral)       
+      105 -                            }                                 
+      106 -                            .buttonStyle(.bordered)           
+      107 -                            .controlSize(.small)              
+      108 -                        }                                     
+      109 -                    }                                         
+      110 -                }                                             
+      108 +                Button("Connect") { showScanSheet = true }    
+      109 +                    .buttonStyle(.bordered)                   
+      110 +                    .controlSize(.small)                      
+      111              }
+      112          }
+      113      }
+      114  
+      115      // MARK: - Right: vertical speed slider
+      116 -    private func speedPanel(geo: GeometryProxy) -> some View {
+      116 +                                                              
+      117 +    private func rightColumn(geo: GeometryProxy) -> some View 
+          +{                                                             
+      118          let trackLength = geo.size.height * 0.62
+      119          return VStack(spacing: 8) {
+      120              Text("\(Int(speed * 100))%")
+      121                  .font(.system(size: 13, weight: .medium, desig
+           n: .monospaced))
+      121 -                .foregroundColor(.primary)                    
+      122              Slider(value: $speed, in: 0...1)
+      123                  .frame(width: trackLength)
+      124                  .rotationEffect(.degrees(-90))
+      125                  .frame(width: 44, height: trackLength)
+      126 +                .onChange(of: speed) { _ in                   
+      127 +                    ble.updateCommand(x: lastX, y: lastY, spee
+          +d: UInt8((speed * 255).rounded()))                            
+      128 +                }                                             
+      129              Text("SPD")
+      130                  .font(.caption2)
+      131                  .foregroundColor(.secondary)
+     ...
+      133          .frame(width: 80)
+      134          .frame(maxHeight: .infinity)
+      135      }
+      136 +                                                              
+      137 +    // MARK: - Scan sheet                                     
+      138 +                                                              
+      139 +    private var scanSheet: some View {                        
+      140 +        NavigationView {                                      
+      141 +            Group {                                           
+      142 +                if ble.peripherals.isEmpty {                  
+      143 +                    VStack(spacing: 12) {                     
+      144 +                        if ble.isScanning { ProgressView() }  
+      145 +                        Text("Searching for MEMARO…")         
+      146 +                            .foregroundColor(.secondary)      
+      147 +                            .font(.subheadline)               
+      148 +                    }                                         
+      149 +                    .frame(maxWidth: .infinity, maxHeight: .in
+          +finity)                                                       
+      150 +                } else {                                      
+      151 +                    List(ble.peripherals, id: \.identifier) { 
+          +peripheral in                                                 
+      152 +                        Button {                              
+      153 +                            ble.connect(peripheral)           
+      154 +                        } label: {                            
+      155 +                            HStack {                          
+      156 +                                Text(peripheral.name ?? "Unkno
+          +wn")                                                          
+      157 +                                Spacer()                      
+      158 +                                Image(systemName: "chevron.rig
+          +ht")                                                          
+      159 +                                    .foregroundColor(.secondar
+          +y)                                                            
+      160 +                                    .font(.caption)           
+      161 +                            }                                 
+      162 +                        }                                     
+      163 +                        .foregroundColor(.primary)            
+      164 +                    }                                         
+      165 +                }                                             
+      166 +            }                                                 
+      167 +            .navigationTitle("Select Rover")                  
+      168 +            .navigationBarTitleDisplayMode(.inline)           
+      169 +            .toolbar {                                        
+      170 +                ToolbarItem(placement: .cancellationAction) { 
+      171 +                    Button("Cancel") { showScanSheet = false }
+      172 +                }                                             
+      173 +            }                                                 
+      174 +        }                                                     
+      175 +        .presentationDetents([.medium])                       
+      176 +        .onAppear { ble.startScan() }                         
+      177 +        .onDisappear { ble.stopScan() }                       
+      178 +    }                                                         
+      179  }
+      180  
+      181  #Preview {
+
+⏺ Also need to register JoystickView.swift in the Xcode project:
+
+⏺ Update(ios-app/MEMARO Controller.xcodeproj/project.pbxproj)
+  ⎿  Added 1 line
+      10      AABBCCDD000000000000000B /* MEMAROControllerApp.swift in So
+          urces */ = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000
+          00A /* MEMAROControllerApp.swift */; };
+      11      AABBCCDD000000000000000D /* ContentView.swift in Sources */
+           = {isa = PBXBuildFile; fileRef = AABBCCDD000000000000000C /* C
+          ontentView.swift */; };
+      12      AABBCCDD000000000000000F /* BLEManager.swift in Sources */ 
+          = {isa = PBXBuildFile; fileRef = AABBCCDD000000000000000E /* BL
+          EManager.swift */; };
+      13 +    AABBCCDD0000000000000019 /* JoystickView.swift in Sources *
+         +/ = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000020 /* 
+         +JoystickView.swift */; };                                      
+      14      AABBCCDD0000000000000011 /* Assets.xcassets in Resources */
+           = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000010 /* A
+          ssets.xcassets */; };
+      15  /* End PBXBuildFile section */
+      16  
+
+⏺ Update(ios-app/MEMARO Controller.xcodeproj/project.pbxproj)
+  ⎿  Added 1 line
+      19      AABBCCDD000000000000000A /* MEMAROControllerApp.swift */ = 
+          {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; 
+          path = MEMAROControllerApp.swift; sourceTree = "<group>"; };
+      20      AABBCCDD000000000000000C /* ContentView.swift */ = {isa = P
+          BXFileReference; lastKnownFileType = sourcecode.swift; path = C
+          ontentView.swift; sourceTree = "<group>"; };
+      21      AABBCCDD000000000000000E /* BLEManager.swift */ = {isa = PB
+          XFileReference; lastKnownFileType = sourcecode.swift; path = BL
+          EManager.swift; sourceTree = "<group>"; };
+      22 +    AABBCCDD0000000000000020 /* JoystickView.swift */ = {isa = 
+         +PBXFileReference; lastKnownFileType = sourcecode.swift; path = 
+         +JoystickView.swift; sourceTree = "<group>"; };                 
+      23      AABBCCDD0000000000000010 /* Assets.xcassets */ = {isa = PBX
+          FileReference; lastKnownFileType = folder.assetcatalog; path = 
+          Assets.xcassets; sourceTree = "<group>"; };
+      24      AABBCCDD0000000000000012 /* Info.plist */ = {isa = PBXFileR
+          eference; lastKnownFileType = text.plist.xml; path = Info.plist
+          ; sourceTree = "<group>"; };
+      25  /* End PBXFileReference section */
+
+⏺ Update(ios-app/MEMARO Controller.xcodeproj/project.pbxproj)
+  ⎿  Added 1 line
+      58          AABBCCDD000000000000000C /* ContentView.swift */,
+      59          AABBCCDD000000000000000E /* BLEManager.swift */,
+      60          AABBCCDD0000000000000010 /* Assets.xcassets */,
+      61 +        AABBCCDD0000000000000020 /* JoystickView.swift */,     
+      62          AABBCCDD0000000000000012 /* Info.plist */,
+      63        );
+      64        path = "MEMARO Controller";
+
+⏺ Update(ios-app/MEMARO Controller.xcodeproj/project.pbxproj)
+  ⎿  Added 1 line
+      136          AABBCCDD000000000000000B /* MEMAROControllerApp.swift 
+           in Sources */,
+      137          AABBCCDD000000000000000D /* ContentView.swift in Sourc
+           es */,
+      138          AABBCCDD000000000000000F /* BLEManager.swift in Source
+           s */,
+      139 +        AABBCCDD0000000000000019 /* JoystickView.swift in Sour
+          +ces */,                                                       
+      140        );
+      141        runOnlyForDeploymentPostprocessing = 0;
+      142      };
+
+⏺ Done. Here's a summary of what landed:
+
+  BLEManager — added updateCommand(), startCommandTimer() / stopCommandTimer(),
+  connectedDeviceName. Timer fires every 50 ms, reads pendingX/Y/Speed, sends
+  only when isConnected. Stops and zeroes pending state before the disconnect
+  sequence runs.
+
+  JoystickView — circular track with thumb, clamped drag, 5% dead zone, Y-axis
+  inverted (up = positive), snap-back animation on release. Two callbacks:
+  onUpdate during drag, onRelease on end (caller sends 0,0,0 — not
+  currentSpeed).
+
+  ContentView — three-column GeometryReader layout, speed slider .onChange
+  updates pending command, scan sheet restarts scan on appear and stops on
+  disappear, auto-dismisses on connect.
+
+✻ Baked for 2m 4s
+
+❯ compare the service UUID and both characteristic UUIDs                        
+  in ESP32_control.ino against BLEManager.swift - confirm                       
+  they match exactly                                                            
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+❯ sure, unning a grep across both files to verify UUIDs match                   
+  catches any copy-paste error between firmware and app                         
+
+⏺ All three match exactly:
+
+  ┌───────┬───────────┬───────────┬───────────┐
+  │       │  Service  │  Control  │ Feedback  │
+  ├───────┼───────────┼───────────┼───────────┤
+  │ ESP32 │ 4FAFC201… │ BEB5483E… │ 1C95D5E3… │
+  ├───────┼───────────┼───────────┼───────────┤
+  │ iOS   │ 4FAFC201… │ BEB5483E… │ 1C95D5E3… │
+  └───────┴───────────┴───────────┴───────────┘
+
+  Saving that grep pattern as a reference so future sessions use it
+  automatically.
+
+  Wrote 2 memories (ctrl+o to expand)
+
+✻ Crunched for 23s
+
+❯ /export                                                                       
+  ⎿  Conversation copied to clipboard
+
+※ recap: MEMARO 2.0 rover BLE controller — firmware rewritten, iOS scaffold and BLE manager built, joystick UI complete. Open the Xcode project in ios-app/ and test on device. (disable recaps in /config)

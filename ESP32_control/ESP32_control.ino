@@ -1,113 +1,159 @@
-// ── Feedback scaling definitions ─────────────────────────────────────────────
-#define MAX_CURRENT  1.0f    // Amps at 3.3V (AnOUT1 full scale)
-#define MAX_RPM      5260    // RPM at 3.3V (AnOUT2 full scale)
-#define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
+// ── Feedback scaling ──────────────────────────────────────────────────────────
+#define MAX_CURRENT   1.0f   // Amps at 3.3 V (AnOUT1 full scale)
+#define MAX_RPM       5260   // RPM  at 3.3 V (AnOUT2 full scale)
+#define ADC_FULLSCALE 4095   // 12-bit ADC max (= 3.3 V)
 
 // ── Pin definitions ───────────────────────────────────────────────────────────
-// NOTE: GPIO12 (potentiometer) is temporal — for bench testing only.
-//       Long-term, speed setpoint should be received via Bluetooth.
-#define POT_PIN      4  // Potentiometer ADC input (0–3.3V → 0–100% PWM)
+#define PWM_PIN    19   // PWM speed output  (20 kHz, 8-bit)
+#define DIR_PIN    17   // Direction output   HIGH=CCW, LOW=CW
+#define EN_OUT_PIN 16   // Enable output      HIGH=enabled, LOW=disabled
+#define ANOUT1_PIN 25   // AnOUT1: current feedback ADC input
+#define ANOUT2_PIN 26   // AnOUT2: speed feedback ADC input
 
-#define PWM_PIN     19  // PWM speed control output to motor driver
-#define DIR_PIN     17  // Direction output to motor driver (HIGH=CCW, LOW=CW)
-#define EN_OUT_PIN  16  // Enable output to motor driver (HIGH=enabled, LOW=disabled)
-#define ANOUT1_PIN  25  // AnOUT1: current feedback ADC input
-#define ANOUT2_PIN  26  // AnOUT2: speed feedback ADC input
-
-// NOTE: GPIO21 (enable toggle) and GPIO0 (direction toggle) are temporal —
-//       physical buttons for bench testing only.
-//       GPIO18 avoided — VSPI_CLK, causes reboot when pulled LOW on most boards.
-#define EN_TOGGLE_PIN  21  // Button input: toggles motor enable on each press
-#define DIR_TOGGLE_PIN  0  // IO0 button input: toggles motor direction on each press
-
-// ── PWM config ────────────────────────────────────────────────────────────────
-// Using ESP32 Arduino core v3.x LEDC API (ledcAttach / ledcWrite by pin)
-#define PWM_FREQ  20000  // 20 kHz
-#define PWM_RES   8      // 8-bit resolution (0–255)
+// ── PWM config (ESP32 Arduino core v3.x LEDC API) ────────────────────────────
+#define PWM_FREQ 20000  // 20 kHz
+#define PWM_RES  8      // 8-bit resolution (0–255)
 
 // ── ADC averaging ─────────────────────────────────────────────────────────────
-#define AVG_SAMPLES  16
+#define AVG_SAMPLES 16
+
+// ── BLE UUIDs ─────────────────────────────────────────────────────────────────
+#define SERVICE_UUID   "4FAFC201-1FB5-459E-8FCC-C5C9C331914B"
+#define CTRL_CHAR_UUID "BEB5483E-36E1-4688-B7F5-EA07361B26A8"  // Write NR
+#define FB_CHAR_UUID   "1C95D5E3-D8F5-4D7F-8B9C-2B7A5C3F1234"  // Notify
+
+#include <NimBLEDevice.h>
 
 // ── State ─────────────────────────────────────────────────────────────────────
-bool motorEnabled  = false;
-bool dirCCW        = true;   // true = CCW (dir1), false = CW (dir2)
+static bool motorEnabled = false;
+static bool dirCCW       = true;   // true = CCW (GPIO17 HIGH)
+static bool bleConnected = false;
 
-#define DEBOUNCE_MS  50  // ms to wait before registering a button press
-
-bool lastEnBtn  = HIGH;
-bool lastDirBtn = HIGH;
-
-unsigned long lastEnTime  = 0;
-unsigned long lastDirTime = 0;
+static NimBLECharacteristic* pFeedbackChar = nullptr;
 
 // ─────────────────────────────────────────────────────────────────────────────
-int adcAverage(int pin) {
-  long sum = 0;
-  for (int i = 0; i < AVG_SAMPLES; i++) {
-    sum += analogRead(pin);
-  }
-  return sum / AVG_SAMPLES;
+static void motorStop() {
+  ledcWrite(PWM_PIN, 0);
+  digitalWrite(EN_OUT_PIN, LOW);
+  motorEnabled = false;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+class ServerCallbacks : public NimBLEServerCallbacks {
+  void onConnect(NimBLEServer*) override {
+    // GPIO16 stays LOW; motor stays disabled until first non-zero command
+    bleConnected = true;
+    Serial.println("BLE connected — awaiting first command");
+  }
+
+  void onDisconnect(NimBLEServer*) override {
+    motorStop();   // PWM → 0, GPIO16 LOW, motorEnabled = false
+    bleConnected = false;
+    Serial.println("BLE disconnected — motor stopped");
+    NimBLEDevice::startAdvertising();
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+class ControlCallbacks : public NimBLECharacteristicCallbacks {
+  void onWrite(NimBLECharacteristic* pChar) override {
+    NimBLEAttValue val = pChar->getValue();
+    if (val.length() < 3) return;
+
+    int8_t  x     = (int8_t)val[0];   // left/right  –100…100
+    int8_t  y     = (int8_t)val[1];   // fwd/back    –100…100
+    uint8_t speed = val[2];            // PWM duty    0…255
+
+    // TODO: differential drive — map x/y to independent left/right motor
+    //       speeds once second motor is wired (x currently unused).
+    (void)x;
+
+    // Direction from y; no change when y == 0 (speed will be 0 anyway)
+    if (y > 0) {
+      dirCCW = false;
+      digitalWrite(DIR_PIN, LOW);   // CW  = forward
+    } else if (y < 0) {
+      dirCCW = true;
+      digitalWrite(DIR_PIN, HIGH);  // CCW = backward
+    }
+
+    // Enable motor on first non-zero speed command
+    if (speed > 0 && !motorEnabled) {
+      digitalWrite(EN_OUT_PIN, HIGH);
+      motorEnabled = true;
+    }
+
+    ledcWrite(PWM_PIN, speed);
+
+    // Disable if commanded to stop (keeps GPIO16 LOW until next non-zero command)
+    if (speed == 0 && motorEnabled) {
+      digitalWrite(EN_OUT_PIN, LOW);
+      motorEnabled = false;
+    }
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+static int adcAverage(int pin) {
+  long sum = 0;
+  for (int i = 0; i < AVG_SAMPLES; i++) sum += analogRead(pin);
+  return (int)(sum / AVG_SAMPLES);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
 
-  pinMode(EN_TOGGLE_PIN,  INPUT_PULLUP);
-  pinMode(DIR_TOGGLE_PIN, INPUT_PULLUP);
   pinMode(DIR_PIN,    OUTPUT);
   pinMode(EN_OUT_PIN, OUTPUT);
-  digitalWrite(EN_OUT_PIN, LOW);  // Default: disabled
+  digitalWrite(EN_OUT_PIN, LOW);   // disabled until first command
+  digitalWrite(DIR_PIN,    HIGH);  // default: CCW
 
   ledcAttach(PWM_PIN, PWM_FREQ, PWM_RES);
-
   ledcWrite(PWM_PIN, 0);
-  digitalWrite(DIR_PIN, HIGH);  // Default: CCW
 
+  NimBLEDevice::init("MEMARO");
+  NimBLEServer* pServer = NimBLEDevice::createServer();
+  pServer->setCallbacks(new ServerCallbacks());
 
+  NimBLEService* pService = pServer->createService(SERVICE_UUID);
+
+  NimBLECharacteristic* pCtrlChar = pService->createCharacteristic(
+    CTRL_CHAR_UUID, NIMBLE_PROPERTY::WRITE_NR);
+  pCtrlChar->setCallbacks(new ControlCallbacks());
+
+  pFeedbackChar = pService->createCharacteristic(
+    FB_CHAR_UUID, NIMBLE_PROPERTY::NOTIFY);
+
+  pService->start();
+  NimBLEDevice::startAdvertising();
+  Serial.println("BLE advertising as MEMARO");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 void loop() {
-  // ── Enable toggle (GPIO21 external button) ────────────────────────────────
-  // Wire an external button between GPIO21 and GND. The board's physical EN/RST
-  // button is unrelated and should not be used — it resets the chip in hardware.
-  bool enBtn = digitalRead(EN_TOGGLE_PIN);
-  if (enBtn == LOW && lastEnBtn == HIGH && (millis() - lastEnTime > DEBOUNCE_MS)) {
-    motorEnabled = !motorEnabled;
-    lastEnTime = millis();
-    digitalWrite(EN_OUT_PIN, motorEnabled ? HIGH : LOW);
-    Serial.print("Enable: "); Serial.println(motorEnabled ? "ON" : "OFF");
-  }
-  lastEnBtn = enBtn;
-
-  // ── Direction toggle (IO0 button) ──────────────────────────────────────────
-  bool dirBtn = digitalRead(DIR_TOGGLE_PIN);
-  if (dirBtn == LOW && lastDirBtn == HIGH && (millis() - lastDirTime > DEBOUNCE_MS)) {
-    dirCCW = !dirCCW;
-    digitalWrite(DIR_PIN, dirCCW ? HIGH : LOW);  // HIGH=CCW, LOW=CW
-    lastDirTime = millis();
-    Serial.print("Direction: "); Serial.println(dirCCW ? "CCW" : "CW");
-  }
-  lastDirBtn = dirBtn;
-
-  // ── PWM from potentiometer (only when enabled) ─────────────────────────────
-  if (motorEnabled) {
-    int potRaw  = adcAverage(POT_PIN);
-    int pwmDuty = map(potRaw, 0, ADC_FULLSCALE, 0, 255);
-    ledcWrite(PWM_PIN, pwmDuty);
-  } else {
-    ledcWrite(PWM_PIN, 0);
-  }
-
-  // ── Feedback readings ──────────────────────────────────────────────────────
   int   currentRaw = adcAverage(ANOUT1_PIN);
   float currentA   = (currentRaw / (float)ADC_FULLSCALE) * MAX_CURRENT;
 
   int   speedRaw   = adcAverage(ANOUT2_PIN);
-  float speedRPM   = (speedRaw / (float)ADC_FULLSCALE) * MAX_RPM;
+  float speedRPM   = (speedRaw  / (float)ADC_FULLSCALE) * MAX_RPM;
 
-  Serial.print("En: ");       Serial.print(motorEnabled ? "ON " : "OFF");
-  Serial.print(" | Dir: ");   Serial.print(dirCCW ? "CCW" : "CW ");
-  Serial.print(" | Speed: "); Serial.print(speedRPM, 0); Serial.print(" RPM");
+  if (bleConnected && pFeedbackChar != nullptr) {
+    uint16_t rpmInt    = (uint16_t)speedRPM;
+    uint16_t currentMA = (uint16_t)(currentA * 1000.0f);
+
+    uint8_t payload[4] = {
+      (uint8_t)(rpmInt    >> 8), (uint8_t)(rpmInt    & 0xFF),
+      (uint8_t)(currentMA >> 8), (uint8_t)(currentMA & 0xFF)
+    };
+    pFeedbackChar->setValue(payload, 4);
+    pFeedbackChar->notify();
+  }
+
+  Serial.print("BLE: "); Serial.print(bleConnected ? "CONN" : "ADV ");
+  Serial.print(" | En: ");      Serial.print(motorEnabled ? "ON " : "OFF");
+  Serial.print(" | Dir: ");     Serial.print(dirCCW ? "CCW" : "CW ");
+  Serial.print(" | Speed: ");   Serial.print(speedRPM, 0); Serial.print(" RPM");
   Serial.print(" | Current: "); Serial.print(currentA, 3); Serial.println(" A");
 
   delay(50);
