@@ -181,4 +181,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(BLEManager())
+        .previewInterfaceOrientation(.landscapeLeft)
 }

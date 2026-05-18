@@ -10,8 +10,8 @@
 		AABBCCDD000000000000000B /* MEMAROControllerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD000000000000000A /* MEMAROControllerApp.swift */; };
 		AABBCCDD000000000000000D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD000000000000000C /* ContentView.swift */; };
 		AABBCCDD000000000000000F /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD000000000000000E /* BLEManager.swift */; };
-		AABBCCDD0000000000000019 /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000020 /* JoystickView.swift */; };
 		AABBCCDD0000000000000011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000010 /* Assets.xcassets */; };
+		AABBCCDD0000000000000019 /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000020 /* JoystickView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,9 +19,9 @@
 		AABBCCDD000000000000000A /* MEMAROControllerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MEMAROControllerApp.swift; sourceTree = "<group>"; };
 		AABBCCDD000000000000000C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AABBCCDD000000000000000E /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
-		AABBCCDD0000000000000020 /* JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
 		AABBCCDD0000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AABBCCDD0000000000000012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AABBCCDD0000000000000020 /* JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,7 +35,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AABBCCDD0000000000000002 /* root */ = {
+		AABBCCDD0000000000000002 = {
 			isa = PBXGroup;
 			children = (
 				AABBCCDD0000000000000004 /* MEMARO Controller */,
@@ -230,6 +230,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.memaro.controller;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -252,6 +256,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.memaro.controller;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -280,7 +288,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
 	};
 	rootObject = AABBCCDD0000000000000001 /* Project object */;
 }
