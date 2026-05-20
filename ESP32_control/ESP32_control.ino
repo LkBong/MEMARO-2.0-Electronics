@@ -1,6 +1,6 @@
 // ── Feedback scaling definitions ─────────────────────────────────────────────
 #define MAX_CURRENT  1.0f    // Amps at 3.3V (AnOUT1 full scale)
-#define MAX_RPM      5260    // RPM at 3.3V (AnOUT2 full scale)
+#define MAX_RPM      10300    // RPM at 3.3V (AnOUT2 full scale)
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
 // ── Pin definitions ───────────────────────────────────────────────────────────
