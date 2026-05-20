@@ -92,7 +92,7 @@ void loop() {
   // ── PWM from potentiometer (only when enabled) ─────────────────────────────
   if (motorEnabled) {
     int potRaw  = adcAverage(POT_PIN);
-    int pwmDuty = map(potRaw, 0, ADC_FULLSCALE, 0, 255);
+    int pwmDuty = map(potRaw, 0, ADC_FULLSCALE, 25, 179);
     ledcWrite(PWM_PIN, pwmDuty);
   } else {
     ledcWrite(PWM_PIN, 0);
