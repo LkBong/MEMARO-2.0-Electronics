@@ -4,7 +4,8 @@
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
 // ── Test config ───────────────────────────────────────────────────────────────
-#define TEST_DURATION_MS  10000  // ms; change to adjust test length
+#define TEST_DURATION_UP_MS  10000  // ms; change to adjust test length upwards
+#define TEST_DURATION_DOWN_MS 8000 //ms; change to adjust test length downwards (to-be manually adjusted in case PID control is imperfect; at the end of the day it's not position control, so inaccuracies may exist)
 
 // ── Pin definitions ───────────────────────────────────────────────────────────
 #define POT_PIN        4   // Potentiometer ADC input — locks PWM setpoint at test start
@@ -16,6 +17,7 @@
 
 // NOTE: GPIO18 avoided — VSPI_CLK, causes reboot when pulled LOW on most boards.
 #define EN_TOGGLE_PIN  21  // Button: press to start test (INPUT_PULLUP, active LOW)
+#define DIR_TOGGLE_PIN  0  // IO0 button: toggles direction between tests (INPUT_PULLUP, active LOW)
 
 // ── PWM config ────────────────────────────────────────────────────────────────
 // Using ESP32 Arduino core v3.x LEDC API (ledcAttach / ledcWrite by pin)
@@ -27,11 +29,14 @@
 
 // ── State ─────────────────────────────────────────────────────────────────────
 bool motorEnabled = false;
+bool dirCCW       = true;  // true = CCW; overridden by standardTest() during run
 
 #define DEBOUNCE_MS  50
 
-bool lastEnBtn = HIGH;
-unsigned long lastEnTime = 0;
+bool lastEnBtn  = HIGH;
+bool lastDirBtn = HIGH;
+unsigned long lastEnTime  = 0;
+unsigned long lastDirTime = 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 int adcAverage(int pin) {
@@ -54,7 +59,14 @@ void toggleEnable() {
 }
 
 void toggleDirection() {
-  // Reserved for manual operation mode — not used in standardTest()
+  bool dirBtn = digitalRead(DIR_TOGGLE_PIN);
+  if (dirBtn == LOW && lastDirBtn == HIGH && (millis() - lastDirTime > DEBOUNCE_MS)) {
+    dirCCW = !dirCCW;
+    digitalWrite(DIR_PIN, dirCCW ? HIGH : LOW);
+    lastDirTime = millis();
+    Serial.print("Direction: "); Serial.println(dirCCW ? "CCW" : "CW");
+  }
+  lastDirBtn = dirBtn;
 }
 
 void pwmSend(int pwmDuty) {
@@ -81,7 +93,7 @@ void standardTest() {
   Serial.println("start");
 
   unsigned long startTime = millis();
-  while (millis() - startTime < TEST_DURATION_MS) {
+  while (millis() - startTime < TEST_DURATION_UP_MS) {
     unsigned long elapsed = millis() - startTime;
     float currentA = (adcAverage(ANOUT1_PIN) / (float)ADC_FULLSCALE) * MAX_CURRENT;
     float speedRPM = (adcAverage(ANOUT2_PIN) / (float)ADC_FULLSCALE) * MAX_RPM;
@@ -101,12 +113,30 @@ void standardTest() {
 
   Serial.println("stop");
   Serial.flush();
+
+  // wait a bit
+  delay(2000); // delay 2000 ms
+  // begin moving downwards
+  motorEnabled = true;
+  digitalWrite(EN_OUT_PIN, HIGH);
+  digitalWrite(DIR_PIN, LOW);   // CW fixed for torque test reset
+  ledcWrite(PWM_PIN, pwmDuty);
+  // unsigned long lowerStartTime = millis();
+  // while (millis() - lowerStartTime < TEST_DURATION_DOWN_MS) {
+  //   delay(50);
+  // } // can simplify this, but keep that for now in case i need to add more
+  delay(TEST_DURATION_DOWN_MS);
+
+  ledcWrite(PWM_PIN, 0);
+  motorEnabled = false;
+  digitalWrite(EN_OUT_PIN, LOW);
 }
 
 void setup() {
   Serial.begin(115200);
 
-  pinMode(EN_TOGGLE_PIN, INPUT_PULLUP);
+  pinMode(EN_TOGGLE_PIN,  INPUT_PULLUP);
+  pinMode(DIR_TOGGLE_PIN, INPUT_PULLUP);
   pinMode(DIR_PIN,    OUTPUT);
   pinMode(EN_OUT_PIN, OUTPUT);
   digitalWrite(EN_OUT_PIN, LOW);   // Default: disabled
@@ -122,6 +152,8 @@ void loop() {
     cmd.trim();
     if (cmd == "ping") Serial.println("pong");  // comms check before test
   }
+
+  toggleDirection();
 
   bool enBtn = digitalRead(EN_TOGGLE_PIN);
   if (enBtn == LOW && lastEnBtn == HIGH && (millis() - lastEnTime > DEBOUNCE_MS)) {
