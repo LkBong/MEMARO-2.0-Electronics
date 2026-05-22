@@ -1,11 +1,11 @@
 // ── Feedback scaling definitions ─────────────────────────────────────────────
-#define MAX_CURRENT   1.0f   // Amps at 3.3V (AnOUT1 full scale)
+#define MAX_CURRENT   2.5f   // Amps at 3.3V (AnOUT1 full scale)
 #define MAX_RPM       10300  // RPM at 3.3V (AnOUT2 full scale)
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
 // ── Test config ───────────────────────────────────────────────────────────────
 #define TEST_DURATION_UP_MS  10000  // ms; change to adjust test length upwards
-#define TEST_DURATION_DOWN_MS 8000 //ms; change to adjust test length downwards (to-be manually adjusted in case PID control is imperfect; at the end of the day it's not position control, so inaccuracies may exist)
+#define TEST_DURATION_DOWN_MS 10000 //ms; change to adjust test length downwards (to-be manually adjusted in case PID control is imperfect; at the end of the day it's not position control, so inaccuracies may exist)
 
 // ── Pin definitions ───────────────────────────────────────────────────────────
 #define POT_PIN        4   // Potentiometer ADC input — locks PWM setpoint at test start
@@ -130,6 +130,8 @@ void standardTest() {
   ledcWrite(PWM_PIN, 0);
   motorEnabled = false;
   digitalWrite(EN_OUT_PIN, LOW);
+
+  Serial.print("Reset Completed");
 }
 
 void setup() {
