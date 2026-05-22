@@ -118,8 +118,8 @@ void standardTest() {
   delay(2000); // delay 2000 ms
   // begin moving downwards
   // motorEnabled = true;
-  digitalWrite(EN_OUT_PIN, HIGH);
   digitalWrite(DIR_PIN, LOW);   // CW fixed for torque test reset
+  digitalWrite(EN_OUT_PIN, HIGH);
   ledcWrite(PWM_PIN, pwmDuty);
   // unsigned long lowerStartTime = millis();
   // while (millis() - lowerStartTime < TEST_DURATION_DOWN_MS) {
@@ -131,7 +131,7 @@ void standardTest() {
   // motorEnabled = false;
   digitalWrite(EN_OUT_PIN, LOW);
 
-  Serial.print("Reset Completed");
+  Serial.println("reset_complete");
 }
 
 void setup() {

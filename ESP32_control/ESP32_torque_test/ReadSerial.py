@@ -36,6 +36,14 @@ with open(f'./data/log_{date_time}.csv', mode='w', newline='') as logfile:
         pc_time = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]
         writer.writerow([pc_time] + decoded.split(','))
 
+    # Keep port open until return phase finishes.
+    # Closing it early toggles DTR/RTS and resets the ESP32 mid-reverse.
+    print("Logging done — waiting for motor return phase...")
+    while True:
+        line = ser.readline().decode("utf-8").strip()
+        if line == "reset_complete":
+            break
+
     ser.close()
 
 print("logging finished")
