@@ -1,5 +1,3 @@
-
-
 // ── Feedback scaling definitions ─────────────────────────────────────────────
 #define MAX_CURRENT  6.0f    // Amps at 3.3V (AnOUT1 full scale)
 #define MAX_RPM      10300    // RPM at 3.3V (AnOUT2 full scale)
@@ -48,20 +46,23 @@
 // bool lastDirBtn = HIGH;
 
 // unsigned long lastEnTime  = 0;
-// unsigned long lastDirTime = 0; 
+// unsigned long lastDirTime = 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 int adcAverage(int pin) {
-  long sum = 0;
+  float sum = 0;
+ 
   for (int i = 0; i < AVG_SAMPLES; i++) {
-    sum += analogRead(pin);
+    sum += analogRead(pin); // 100 bitd offset
+    //Serial.println( (analogRead(pin))*3.3/4095);
   }
+ 
   return sum / AVG_SAMPLES;
 }
 
 //forward function: input of PWM out of 90% and drive both motors at the specified speed
     //to propel the rover forward
-void forward(int speed) { 
+void forward(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  // CCW
   digitalWrite(DIR_PIN_R, LOW);  //  CW
 
@@ -75,7 +76,7 @@ void forward(int speed) {
 
 //backward function: input of PWM out of 90% and drive both motors at the specified speed
     //to propel the rover backward
-void backward(int speed) { 
+void backward(int speed) {
   digitalWrite(DIR_PIN_L, LOW);  //  CW
   digitalWrite(DIR_PIN_R, HIGH);  // CCW
 
@@ -89,7 +90,7 @@ void backward(int speed) {
 
 //left function: input of PWM out of 90% and drive both motors at the specified speed
     //to rotate the rover left
-void left(int speed) { 
+void left(int speed) {
   digitalWrite(DIR_PIN_L, LOW);  // Default: CW
   digitalWrite(DIR_PIN_R, LOW);  // Default: CW
 
@@ -103,7 +104,7 @@ void left(int speed) {
 
 //left function: input of PWM out of 90% and drive both motors at the specified speed
     //to rotate the rover right
-void right(int speed) { 
+void right(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  //CCW
   digitalWrite(DIR_PIN_R, HIGH);  //CCW
 
@@ -115,7 +116,7 @@ void right(int speed) {
   digitalWrite(EN_OUT_PIN_R, HIGH);
 }
 
-void brake() { 
+void brake() {
   digitalWrite(EN_OUT_PIN_L, LOW);
   digitalWrite(EN_OUT_PIN_R, LOW);
 
@@ -205,7 +206,7 @@ void setup() {
 }
 
 void loop() {
-  
+ 
   handleSerial();
 
   // ── Feedback readings ──────────────────────────────────────────────────────
@@ -221,10 +222,10 @@ void loop() {
 
 
   Serial.print(" | Speed_L: "); Serial.print(speedRPM_L, 0); Serial.print(" RPM");
-  Serial.print(" | Speed_R: "); Serial.print(speedRPM_R, 0); Serial.print(" RPM");
+  //Serial.print(" | Speed_R: "); Serial.print(speedRPM_R, 0); Serial.print(" RPM");
 
   Serial.print(" | Current_L: "); Serial.print(currentA_L, 3); Serial.println(" A");
-  Serial.print(" | Current_R: "); Serial.print(currentA_R, 3); Serial.println(" A");
+  //Serial.print(" | Current_R: "); Serial.print(currentA_R, 3); Serial.println(" A");
 
-  delay(50);
+  delay(1000);
 }
