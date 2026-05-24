@@ -1,5 +1,5 @@
 // ── Feedback scaling definitions ─────────────────────────────────────────────
-#define MAX_CURRENT   2.5f   // Amps at 3.3V (AnOUT1 full scale)
+#define MAX_CURRENT   6.0f   // Amps at 3.3V (AnOUT1 full scale)
 #define MAX_RPM       10300  // RPM at 3.3V (AnOUT2 full scale)
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
@@ -83,7 +83,7 @@ void printFeedback() {
 }
 
 void standardTest() {
-  int pwmDuty = map(adcAverage(POT_PIN), 0, ADC_FULLSCALE, 25, 179);  // lock setpoint once
+  int pwmDuty = map(adcAverage(POT_PIN), 0, ADC_FULLSCALE, 25, 230);  // lock setpoint once
 
   motorEnabled = true;
   digitalWrite(EN_OUT_PIN, HIGH);

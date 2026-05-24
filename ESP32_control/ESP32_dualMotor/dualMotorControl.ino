@@ -1,7 +1,7 @@
 
 
 // ── Feedback scaling definitions ─────────────────────────────────────────────
-#define MAX_CURRENT  1.0f    // Amps at 3.3V (AnOUT1 full scale)
+#define MAX_CURRENT  6.0f    // Amps at 3.3V (AnOUT1 full scale)
 #define MAX_RPM      10300    // RPM at 3.3V (AnOUT2 full scale)
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
@@ -65,7 +65,7 @@ void forward(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  // CCW
   digitalWrite(DIR_PIN_R, LOW);  //  CW
 
-  int pwmDuty = map(speed, 0, 100, 25, 179);
+  int pwmDuty = map(speed, 0, 100, 25, 230);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 
@@ -79,7 +79,7 @@ void backward(int speed) {
   digitalWrite(DIR_PIN_L, LOW);  //  CW
   digitalWrite(DIR_PIN_R, HIGH);  // CCW
 
-  int pwmDuty = map(speed, 0, 100, 25, 179);
+  int pwmDuty = map(speed, 0, 100, 25, 230);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 
@@ -93,7 +93,7 @@ void left(int speed) {
   digitalWrite(DIR_PIN_L, LOW);  // Default: CW
   digitalWrite(DIR_PIN_R, LOW);  // Default: CW
 
-  int pwmDuty = map(speed, 0, 100, 25, 179);
+  int pwmDuty = map(speed, 0, 100, 25, 230);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 
@@ -107,7 +107,7 @@ void right(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  //CCW
   digitalWrite(DIR_PIN_R, HIGH);  //CCW
 
-  int pwmDuty = map(speed, 0, 100, 25, 179);
+  int pwmDuty = map(speed, 0, 100, 25, 230);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 
@@ -119,7 +119,7 @@ void brake() {
   digitalWrite(EN_OUT_PIN_L, LOW);
   digitalWrite(EN_OUT_PIN_R, LOW);
 
-  int pwmDuty = map(0, 0, 100, 25, 179);
+  int pwmDuty = map(0, 0, 100, 25, 230);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 }
@@ -144,34 +144,26 @@ void handleSerial() {
   switch (c) {
     case 'F':  // Forward
     case 'f':
-      if (value <= 0) value = 200;   // default speed if none given
+      if (value <= 0) value = 70;   // default speed if none given
       forward(value);
-      Serial.print("Forward, speed=");
-      Serial.println(value);
       break;
 
     case 'B':  // Backward
     case 'b':
-      if (value <= 0) value = 200;
+      if (value <= 0) value = 70;
       backward(value);
-      Serial.print("Backward, speed=");
-      Serial.println(value);
       break;
 
     case 'L':  // Left
     case 'l':
-      if (value <= 0) value = 200;
+      if (value <= 0) value = 70;
       left(value);
-      Serial.print("Left, speed=");
-      Serial.println(value);
       break;
 
     case 'R':  // Right
     case 'r':
-      if (value <= 0) value = 200;
+      if (value <= 0) value = 70;
       right(value);
-      Serial.print("Right, speed=");
-      Serial.println(value);
       break;
 
     case 'S':  // Brake
