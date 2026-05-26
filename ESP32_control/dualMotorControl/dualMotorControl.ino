@@ -58,15 +58,15 @@ void feedback() {
 
 
     // ── Feedback readings ──────────────────────────────────────────────────────
-  float   currentRaw_L = adcAverage(ANOUT1_PIN_L);
-  float currentA_L   = (currentRaw_L / (float)ADC_FULLSCALE) * MAX_CURRENT;
-  float   currentRaw_R = adcAverage(ANOUT1_PIN_R);
-  float currentA_R   = (currentRaw_R / (float)ADC_FULLSCALE) * MAX_CURRENT;
+  float currentRaw_L = adcAverage(ANOUT1_PIN_L);
+  float currentA_L   = ((currentRaw_L / (float)ADC_FULLSCALE) - 0.5f) * 2.0f * MAX_CURRENT;
+  float currentRaw_R = adcAverage(ANOUT1_PIN_R);
+  float currentA_R   = ((currentRaw_R / (float)ADC_FULLSCALE) - 0.5f) * 2.0f * MAX_CURRENT;
 
-  float   speedRaw_L   = adcAverage(ANOUT2_PIN_L);
-  float speedRPM_L   = (speedRaw_L / (float)ADC_FULLSCALE) * MAX_RPM;
-  float   speedRaw_R   = adcAverage(ANOUT2_PIN_R);
-  float speedRPM_R   = (speedRaw_R / (float)ADC_FULLSCALE) * MAX_RPM;
+  float speedRaw_L   = adcAverage(ANOUT2_PIN_L);
+  float speedRPM_L   = ((speedRaw_L / (float)ADC_FULLSCALE) - 0.5f) * 2.0f * MAX_RPM;
+  float speedRaw_R   = adcAverage(ANOUT2_PIN_R);
+  float speedRPM_R   = ((speedRaw_R / (float)ADC_FULLSCALE) - 0.5f) * 2.0f * MAX_RPM;
 
   float tempRaw_L = adcAverage(NTC_L);
   float V_NTC_L   = (Vcc * tempRaw_L / 4095.0f);
