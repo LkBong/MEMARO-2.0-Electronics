@@ -1,6 +1,16 @@
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// ── BLE UUIDs — must match iOS app BLEManager.swift exactly ──────────────────
+#define SERVICE_UUID       "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CONTROL_CHAR_UUID  "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define FEEDBACK_CHAR_UUID "1c95d5e3-d8f5-4d7f-8b9c-2b7a5c3f1234"
+
 // ── Feedback scaling definitions ─────────────────────────────────────────────
 #define MAX_CURRENT  6.0f    // 6.0 Amps ESCON output to motor at 3.3V (AnOUT1 full scale)
-#define MAX_RPM      10300    // 10300 RPM at 3.3V (AnOUT2 full scale)
+#define MAX_RPM      10300   // 10300 RPM at 3.3V (AnOUT2 full scale)
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
 // ── Pin definitions ───────────────────────────────────────────────────────────
@@ -10,15 +20,15 @@
 #define DIR_PIN_L     32  // Direction output to motor driver (HIGH=CCW, LOW=CW)
 #define ANOUT1_PIN_L  33  // AnOUT1: current feedback ADC input
 #define ANOUT2_PIN_L  25  // AnOUT2: speed feedback ADC input
-#define NTC_L         26 //
+#define NTC_L         26  //
 //to be defined NTC_L
 
 #define PWM_PIN_R     17  // PWM speed control output to motor driver
 #define EN_OUT_PIN_R  16  // Enable output to motor driver (HIGH=enabled, LOW=disabled)
-#define DIR_PIN_R     5  // Direction output to motor driver (HIGH=CCW, LOW=CW)
+#define DIR_PIN_R      5  // Direction output to motor driver (HIGH=CCW, LOW=CW)
 #define ANOUT1_PIN_R  15  // AnOUT1: current feedback ADC input
-#define ANOUT2_PIN_R  2  // AnOUT2: speed feedback ADC input
-#define NTC_R         4 //
+#define ANOUT2_PIN_R   2  // AnOUT2: speed feedback ADC input
+#define NTC_R          4  //
 
 // ── Transmission Parameters ────────────────────────────────────────────────────────────────
 #define diameter  65    //mm
@@ -29,7 +39,7 @@
 #define Vcc  3.3
 #define beta  3490
 #define R25  10000 // ohms at 25 degrees C
-#define R0  4700 //ohms of fixed resistor in potential divider 
+#define R0  4700   //ohms of fixed resistor in potential divider
 
 // ── PWM config ────────────────────────────────────────────────────────────────
 // Using ESP32 Arduino core v3.x LEDC API (ledcAttach / ledcWrite by pin)
@@ -38,6 +48,22 @@
 
 // ── ADC averaging ─────────────────────────────────────────────────────────────
 #define AVG_SAMPLES  16
+
+// ── BLE command thresholds ────────────────────────────────────────────────────
+#define CMD_DEADZONE   10   // ignore joystick values within +-10 of centre
+#define CMD_TIMEOUT_MS 500  // brake if no BLE command received for 500 ms
+
+// ── BLE globals ───────────────────────────────────────────────────────────────
+BLEServer*         pServer       = nullptr;
+BLECharacteristic* pControlChar  = nullptr;
+BLECharacteristic* pFeedbackChar = nullptr;
+bool               bleConnected  = false;
+
+volatile int8_t   cmdX      = 0;
+volatile int8_t   cmdY      = 0;
+volatile uint8_t  cmdSpeed  = 0;
+volatile bool     newCmd    = false;
+volatile uint32_t lastCmdMs = 0;
 
 // ── adcAverage ─────────────────────────────────────────────────────────────────────
 // INPUT: pin number
@@ -55,7 +81,6 @@ float adcAverage(int pin) {
 // INPUT: none
 // OUTPUT: none. Computes speed, current and temperature feedback
 void feedback() {
-
 
     // ── Feedback readings ──────────────────────────────────────────────────────
   float currentRaw_L = adcAverage(ANOUT1_PIN_L);
@@ -78,8 +103,6 @@ void feedback() {
   float R_NTC_R   = R0 * (V_NTC_R / (Vcc - V_NTC_R));
   float T_NTC_R   = (1.0f / (1.0f/T25 + (1.0f/beta) * log(R_NTC_R/R25))) - 273.15f;
 
-
-
   Serial.print(" | Speed_L: "); Serial.print(speedRPM_L, 0); Serial.print(" RPM");
   Serial.print(" | Speed_R: "); Serial.print(speedRPM_R, 0); Serial.print(" RPM");
 
@@ -92,18 +115,37 @@ void feedback() {
 
   Serial.print(" | Temp_L: "); Serial.print(T_NTC_L, 1); Serial.println(" C");
   Serial.print(" | Temp_R: "); Serial.print(T_NTC_R, 1); Serial.println(" C");
-  
+
+  // ── BLE feedback notification (12-byte payload) ────────────────────────────
+  // [0-1] RPM_L  [2-3] RPM_R  [4-5] curL_mA  [6-7] curR_mA
+  // [8-9] tempL*10  [10-11] tempR*10  (Int16, 0.1 °C resolution)
+  if (bleConnected) {
+    uint16_t rpmL_u  = (uint16_t)speedRPM_L;
+    uint16_t rpmR_u  = (uint16_t)speedRPM_R;
+    uint16_t curL_ma = (uint16_t)(currentA_L * 1000.0f);
+    uint16_t curR_ma = (uint16_t)(currentA_R * 1000.0f);
+    int16_t  tmpL    = (int16_t)(T_NTC_L * 10.0f);
+    int16_t  tmpR    = (int16_t)(T_NTC_R * 10.0f);
+
+    uint8_t payload[12] = {
+      (uint8_t)(rpmL_u  >> 8), (uint8_t)(rpmL_u  & 0xFF),
+      (uint8_t)(rpmR_u  >> 8), (uint8_t)(rpmR_u  & 0xFF),
+      (uint8_t)(curL_ma >> 8), (uint8_t)(curL_ma & 0xFF),
+      (uint8_t)(curR_ma >> 8), (uint8_t)(curR_ma & 0xFF),
+      (uint8_t)((uint16_t)tmpL >> 8), (uint8_t)((uint16_t)tmpL & 0xFF),
+      (uint8_t)((uint16_t)tmpR >> 8), (uint8_t)((uint16_t)tmpR & 0xFF)
+    };
+    pFeedbackChar->setValue(payload, 12);
+    pFeedbackChar->notify();
+  }
 }
-
-
-
 
 
 //──Drive Functions  ─────────────────────────────────────────────────────────────────────
 // INPUT: speed (0-100)
 // OUTPUT: none. PWM is update based on speed and both motors are enabled,
   //to drive forward, backward, turn left or right
-void forward(int speed) { 
+void forward(int speed) {
   digitalWrite(DIR_PIN_L, HIGH); // CCW
   digitalWrite(DIR_PIN_R, LOW);  //  CW
 
@@ -116,7 +158,7 @@ void forward(int speed) {
 }
 
 
-void backward(int speed) { 
+void backward(int speed) {
   digitalWrite(DIR_PIN_L, LOW);   //  CW
   digitalWrite(DIR_PIN_R, HIGH);  // CCW
 
@@ -129,7 +171,7 @@ void backward(int speed) {
 }
 
 
-void left(int speed) { 
+void left(int speed) {
   digitalWrite(DIR_PIN_L, LOW);  // Default: CW
   digitalWrite(DIR_PIN_R, LOW);  // Default: CW
 
@@ -142,7 +184,7 @@ void left(int speed) {
 }
 
 
-void right(int speed) { 
+void right(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  //CCW
   digitalWrite(DIR_PIN_R, HIGH);  //CCW
 
@@ -156,8 +198,8 @@ void right(int speed) {
 
 //── Brake  ─────────────────────────────────────────────────────────────────────
 // INPUT: none
-// OUTPUT: disables the motor. 
-void brake() { 
+// OUTPUT: disables the motor.
+void brake() {
   digitalWrite(EN_OUT_PIN_L, LOW);
   digitalWrite(EN_OUT_PIN_R, LOW);
 
@@ -166,6 +208,59 @@ void brake() {
   ledcWrite(PWM_PIN_R, pwmDuty);
 }
 
+// ── BLE server callbacks ──────────────────────────────────────────────────────
+class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer* pSrv) override {
+    bleConnected = true;
+    Serial.println("BLE: client connected");
+  }
+  void onDisconnect(BLEServer* pSrv) override {
+    bleConnected = false;
+    brake();
+    Serial.println("BLE: client disconnected, restarting advertising");
+    BLEDevice::startAdvertising();
+  }
+};
+
+class ControlCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* pChar) override {
+    String val = pChar->getValue();
+    if (val.length() >= 3) {
+      cmdX      = (int8_t)val[0];
+      cmdY      = (int8_t)val[1];
+      cmdSpeed  = (uint8_t)val[2];
+      newCmd    = true;
+      lastCmdMs = millis();
+    }
+  }
+};
+
+// ── processCommand ────────────────────────────────────────────────────────────
+// INPUT: none. Reads latest BLE joystick command
+// OUTPUT: none. Calls drive functions; brakes on timeout or deadzone
+void processCommand() {
+  if (bleConnected && (millis() - lastCmdMs > CMD_TIMEOUT_MS)) {
+    brake();
+    return;
+  }
+  if (!newCmd) return;
+  newCmd = false;
+
+  int motorSpeed = (int)cmdSpeed * 100 / 255;  // map 0-255 → 0-100
+
+  if (motorSpeed == 0 || (abs(cmdX) < CMD_DEADZONE && abs(cmdY) < CMD_DEADZONE)) {
+    brake();
+    return;
+  }
+
+  if (abs(cmdY) >= abs(cmdX)) {
+    if (cmdY > 0) forward(motorSpeed);
+    else          backward(motorSpeed);
+  } else {
+    if (cmdX > 0) right(motorSpeed);
+    else          left(motorSpeed);
+  }
+}
 
 //── Handle Serial  ─────────────────────────────────────────────────────────────────────
 // INPUT : none. Detects commands from serial monitor
@@ -189,25 +284,25 @@ void handleSerial() {
   switch (c) {
     case 'F':  // Forward
     case 'f':
-      if (value <= 0 && value > 100) value = 70;   // default speed if none given
+      if (value <= 0 || value > 100) value = 70;   // default speed if none given
       forward(value);
       break;
 
     case 'B':  // Backward
     case 'b':
-      if (value <= 0 && value > 100) value = 70;
+      if (value <= 0 || value > 100) value = 70;
       backward(value);
       break;
 
     case 'L':  // Left
     case 'l':
-      if (value <= 0 && value > 100) value = 70;
+      if (value <= 0 || value > 100) value = 70;
       left(value);
       break;
 
     case 'R':  // Right
     case 'r':
-      if (value <= 0 && value > 100) value = 70;
+      if (value <= 0 || value > 100) value = 70;
       right(value);
       break;
 
@@ -252,11 +347,40 @@ void setup() {
 
   pinMode(ANOUT1_PIN_L,   INPUT);
   pinMode(ANOUT2_PIN_L,   INPUT);
+
+  // ── BLE init ────────────────────────────────────────────────────────────────
+  BLEDevice::init("MEMARO Controller");
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new ServerCallbacks());
+
+  BLEService* pService = pServer->createService(SERVICE_UUID);
+
+  pControlChar = pService->createCharacteristic(
+      CONTROL_CHAR_UUID, BLECharacteristic::PROPERTY_WRITE_NR);
+  pControlChar->setCallbacks(new ControlCallbacks());
+
+  pFeedbackChar = pService->createCharacteristic(
+      FEEDBACK_CHAR_UUID,
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  pFeedbackChar->addDescriptor(new BLE2902());
+
+  pService->start();
+
+  BLEAdvertising* pAdv = BLEDevice::getAdvertising();
+  pAdv->addServiceUUID(SERVICE_UUID);
+  pAdv->setScanResponse(true);
+  BLEDevice::startAdvertising();
+  Serial.println("BLE advertising as 'MEMARO Controller'");
 }
 
 void loop() {
-  
   handleSerial();
-  feedback();
-  delay(1000);
+  processCommand();  // process latest BLE joystick command
+
+  // non-blocking 1 s feedback interval
+  static uint32_t lastFeedbackMs = 0;
+  if (millis() - lastFeedbackMs >= 1000) {
+    lastFeedbackMs = millis();
+    feedback();
+  }
 }
