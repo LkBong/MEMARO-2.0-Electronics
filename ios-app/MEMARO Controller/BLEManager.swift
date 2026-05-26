@@ -13,8 +13,12 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var isConnected:          Bool           = false
     @Published var isScanning:           Bool           = false
     @Published var peripherals:          [CBPeripheral] = []
-    @Published var rpm:                  Int            = 0
-    @Published var currentA:             Double         = 0.0
+    @Published var rpmL:                 Int            = 0
+    @Published var rpmR:                 Int            = 0
+    @Published var currentAL:            Double         = 0.0
+    @Published var currentAR:            Double         = 0.0
+    @Published var tempCL:               Double         = 0.0
+    @Published var tempCR:               Double         = 0.0
     @Published var connectedDeviceName:  String?        = nil
 
     // MARK: - Private — BLE objects
@@ -159,8 +163,14 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     error: Error?) {
         guard characteristic.uuid == BLEManager.feedbackUUID,
               let data = characteristic.value,
-              data.count >= 4 else { return }
-        rpm      = Int((UInt16(data[0]) << 8) | UInt16(data[1]))
-        currentA = Double((UInt16(data[2]) << 8) | UInt16(data[3])) / 1000.0
+              data.count >= 12 else { return }
+        rpmL      = Int((UInt16(data[0])  << 8) | UInt16(data[1]))
+        rpmR      = Int((UInt16(data[2])  << 8) | UInt16(data[3]))
+        currentAL = Double((UInt16(data[4])  << 8) | UInt16(data[5])) / 1000.0
+        currentAR = Double((UInt16(data[6])  << 8) | UInt16(data[7])) / 1000.0
+        let tlRaw = Int16(bitPattern: (UInt16(data[8])  << 8) | UInt16(data[9]))
+        tempCL    = Double(tlRaw) / 10.0
+        let trRaw = Int16(bitPattern: (UInt16(data[10]) << 8) | UInt16(data[11]))
+        tempCR    = Double(trRaw) / 10.0
     }
 }

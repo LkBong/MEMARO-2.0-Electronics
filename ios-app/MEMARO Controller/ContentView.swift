@@ -58,24 +58,28 @@ struct ContentView: View {
     }
 
     private var telemetryRow: some View {
-        HStack(spacing: 48) {
-            telemetryCell(
-                value: "\(ble.rpm)",
-                unit: "RPM",
-                active: ble.isConnected
-            )
-            telemetryCell(
-                value: String(format: "%.3f", ble.currentA),
-                unit: "A",
-                active: ble.isConnected
-            )
+        HStack(spacing: 28) {
+            motorColumn(label: "LEFT",  rpm: ble.rpmL, current: ble.currentAL, temp: ble.tempCL)
+            Divider().frame(height: 90)
+            motorColumn(label: "RIGHT", rpm: ble.rpmR, current: ble.currentAR, temp: ble.tempCR)
+        }
+    }
+
+    private func motorColumn(label: String, rpm: Int, current: Double, temp: Double) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            telemetryCell(value: "\(rpm)",                        unit: "RPM", active: ble.isConnected)
+            telemetryCell(value: String(format: "%.2f", current), unit: "A",   active: ble.isConnected)
+            telemetryCell(value: String(format: "%.1f", temp),    unit: "°C",  active: ble.isConnected)
         }
     }
 
     private func telemetryCell(value: String, unit: String, active: Bool) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 36, weight: .semibold, design: .monospaced))
+                .font(.system(size: 22, weight: .semibold, design: .monospaced))
                 .foregroundColor(active ? .primary : .secondary)
                 .monospacedDigit()
             Text(unit)
