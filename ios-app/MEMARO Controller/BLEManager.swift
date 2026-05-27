@@ -164,10 +164,10 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         guard characteristic.uuid == BLEManager.feedbackUUID,
               let data = characteristic.value,
               data.count >= 12 else { return }
-        rpmL      = Int((UInt16(data[0])  << 8) | UInt16(data[1]))
-        rpmR      = Int((UInt16(data[2])  << 8) | UInt16(data[3]))
-        currentAL = Double((UInt16(data[4])  << 8) | UInt16(data[5])) / 1000.0
-        currentAR = Double((UInt16(data[6])  << 8) | UInt16(data[7])) / 1000.0
+        rpmL      = Int(Int16(bitPattern: (UInt16(data[0])  << 8) | UInt16(data[1])))
+        rpmR      = Int(Int16(bitPattern: (UInt16(data[2])  << 8) | UInt16(data[3])))
+        currentAL = Double(Int16(bitPattern: (UInt16(data[4])  << 8) | UInt16(data[5]))) / 1000.0
+        currentAR = Double(Int16(bitPattern: (UInt16(data[6])  << 8) | UInt16(data[7]))) / 1000.0
         let tlRaw = Int16(bitPattern: (UInt16(data[8])  << 8) | UInt16(data[9]))
         tempCL    = Double(tlRaw) / 10.0
         let trRaw = Int16(bitPattern: (UInt16(data[10]) << 8) | UInt16(data[11]))

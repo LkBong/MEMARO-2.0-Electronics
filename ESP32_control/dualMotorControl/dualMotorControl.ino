@@ -13,6 +13,9 @@
 #define MAX_RPM      10300   // 10300 RPM at 3.3V (AnOUT2 full scale)
 #define ADC_FULLSCALE 4095   // 12-bit ADC max count (= 3.3V)
 
+// ── Motor Calibration Parameters ─────────────────────────────────────────────────────────────
+#define LEFT_CALIBRATION_FACTOR 1.0 // if greater than 1, left motor is driven faster in fwd and bwd direction
+
 // ── Pin definitions ───────────────────────────────────────────────────────────
 
 #define PWM_PIN_L     27  // PWM speed control output to motor driver
@@ -116,24 +119,29 @@ void feedback() {
   Serial.print(" | Temp_L: "); Serial.print(T_NTC_L, 1); Serial.println(" C");
   Serial.print(" | Temp_R: "); Serial.print(T_NTC_R, 1); Serial.println(" C");
 
+  // Zero out readings when motor driver is disabled — prevents floating-input garbage
+  if (digitalRead(EN_OUT_PIN_L) == LOW) { speedRPM_L = 0.0f; currentA_L = 0.0f; }
+  if (digitalRead(EN_OUT_PIN_R) == LOW) { speedRPM_R = 0.0f; currentA_R = 0.0f; }
+
   // ── BLE feedback notification (12-byte payload) ────────────────────────────
+  // All six fields are Int16 BE (signed) to support bipolar ESCON ANOUT output:
   // [0-1] RPM_L  [2-3] RPM_R  [4-5] curL_mA  [6-7] curR_mA
-  // [8-9] tempL*10  [10-11] tempR*10  (Int16, 0.1 °C resolution)
+  // [8-9] tempL*10  [10-11] tempR*10  (0.1 °C resolution)
   if (bleConnected) {
-    uint16_t rpmL_u  = (uint16_t)speedRPM_L;
-    uint16_t rpmR_u  = (uint16_t)speedRPM_R;
-    uint16_t curL_ma = (uint16_t)(currentA_L * 1000.0f);
-    uint16_t curR_ma = (uint16_t)(currentA_R * 1000.0f);
-    int16_t  tmpL    = (int16_t)(T_NTC_L * 10.0f);
-    int16_t  tmpR    = (int16_t)(T_NTC_R * 10.0f);
+    int16_t rpmL_s  = (int16_t)speedRPM_L;
+    int16_t rpmR_s  = (int16_t)speedRPM_R;
+    int16_t curL_ms = (int16_t)(currentA_L * 1000.0f);
+    int16_t curR_ms = (int16_t)(currentA_R * 1000.0f);
+    int16_t tmpL    = (int16_t)(T_NTC_L * 10.0f);
+    int16_t tmpR    = (int16_t)(T_NTC_R * 10.0f);
 
     uint8_t payload[12] = {
-      (uint8_t)(rpmL_u  >> 8), (uint8_t)(rpmL_u  & 0xFF),
-      (uint8_t)(rpmR_u  >> 8), (uint8_t)(rpmR_u  & 0xFF),
-      (uint8_t)(curL_ma >> 8), (uint8_t)(curL_ma & 0xFF),
-      (uint8_t)(curR_ma >> 8), (uint8_t)(curR_ma & 0xFF),
-      (uint8_t)((uint16_t)tmpL >> 8), (uint8_t)((uint16_t)tmpL & 0xFF),
-      (uint8_t)((uint16_t)tmpR >> 8), (uint8_t)((uint16_t)tmpR & 0xFF)
+      (uint8_t)((uint16_t)rpmL_s  >> 8), (uint8_t)((uint16_t)rpmL_s  & 0xFF),
+      (uint8_t)((uint16_t)rpmR_s  >> 8), (uint8_t)((uint16_t)rpmR_s  & 0xFF),
+      (uint8_t)((uint16_t)curL_ms >> 8), (uint8_t)((uint16_t)curL_ms & 0xFF),
+      (uint8_t)((uint16_t)curR_ms >> 8), (uint8_t)((uint16_t)curR_ms & 0xFF),
+      (uint8_t)((uint16_t)tmpL    >> 8), (uint8_t)((uint16_t)tmpL    & 0xFF),
+      (uint8_t)((uint16_t)tmpR    >> 8), (uint8_t)((uint16_t)tmpR    & 0xFF)
     };
     pFeedbackChar->setValue(payload, 12);
     pFeedbackChar->notify();
@@ -146,12 +154,13 @@ void feedback() {
 // OUTPUT: none. PWM is update based on speed and both motors are enabled,
   //to drive forward, backward, turn left or right
 void forward(int speed) {
-  digitalWrite(DIR_PIN_L, HIGH); // CCW
-  digitalWrite(DIR_PIN_R, LOW);  //  CW
+  digitalWrite(DIR_PIN_L, LOW); 
+  digitalWrite(DIR_PIN_R, LOW);  
 
-  int pwmDuty = map(speed, 0, 100, 25, 230); //maps 10% and 90% PWM
-  ledcWrite(PWM_PIN_L, pwmDuty);
-  ledcWrite(PWM_PIN_R, pwmDuty);
+  int pwmDuty_L = map(speed*LEFT_CALIBRATION_FACTOR, 0, 100, 25, 230); //maps 10% and 90% PWM
+  int pwmDuty_R = map(speed, 0, 100, 25, 230);
+  ledcWrite(PWM_PIN_L, pwmDuty_L);
+  ledcWrite(PWM_PIN_R, pwmDuty_R);
 
   digitalWrite(EN_OUT_PIN_L, HIGH);
   digitalWrite(EN_OUT_PIN_R, HIGH);
@@ -159,20 +168,21 @@ void forward(int speed) {
 
 
 void backward(int speed) {
-  digitalWrite(DIR_PIN_L, LOW);   //  CW
-  digitalWrite(DIR_PIN_R, HIGH);  // CCW
+  digitalWrite(DIR_PIN_L, HIGH);  
+  digitalWrite(DIR_PIN_R, HIGH);  
 
-  int pwmDuty = map(speed, 0, 100, 25, 230);
-  ledcWrite(PWM_PIN_L, pwmDuty);
-  ledcWrite(PWM_PIN_R, pwmDuty);
-
+  int pwmDuty_L = map(speed*LEFT_CALIBRATION_FACTOR, 0, 100, 25, 230); //maps 10% and 90% PWM
+  int pwmDuty_R = map(speed, 0, 100, 25, 230);
+  ledcWrite(PWM_PIN_L, pwmDuty_L);
+  ledcWrite(PWM_PIN_R, pwmDuty_R);
+ 
   digitalWrite(EN_OUT_PIN_L, HIGH);
   digitalWrite(EN_OUT_PIN_R, HIGH);
 }
 
 
 void left(int speed) {
-  digitalWrite(DIR_PIN_L, LOW);  // Default: CW
+  digitalWrite(DIR_PIN_L, HIGH);  // Default: CW
   digitalWrite(DIR_PIN_R, LOW);  // Default: CW
 
   int pwmDuty = map(speed, 0, 100, 25, 230);
@@ -186,7 +196,7 @@ void left(int speed) {
 
 void right(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  //CCW
-  digitalWrite(DIR_PIN_R, HIGH);  //CCW
+  digitalWrite(DIR_PIN_R, LOW);  //CCW
 
   int pwmDuty = map(speed, 0, 100, 25, 230);
   ledcWrite(PWM_PIN_L, pwmDuty);
