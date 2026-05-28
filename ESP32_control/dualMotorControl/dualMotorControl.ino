@@ -28,9 +28,9 @@
 
 #define PWM_PIN_R     17  // PWM speed control output to motor driver
 #define EN_OUT_PIN_R  16  // Enable output to motor driver (HIGH=enabled, LOW=disabled)
-#define DIR_PIN_R      5  // Direction output to motor driver (HIGH=CCW, LOW=CW)
-#define ANOUT1_PIN_R  15  // AnOUT1: current feedback ADC input
-#define ANOUT2_PIN_R   2  // AnOUT2: speed feedback ADC input
+#define DIR_PIN_R     5  // Direction output to motor driver (HIGH=CCW, LOW=CW)
+#define ANOUT1_PIN_R  34 // 15  // AnOUT1: current feedback ADC input
+#define ANOUT2_PIN_R  39  // 2 AnOUT2: speed feedback ADC input
 #define NTC_R          4  //
 
 // ── Transmission Parameters ────────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ void forward(int speed) {
   digitalWrite(DIR_PIN_R, LOW);  
 
   int pwmDuty_L = map(speed*LEFT_CALIBRATION_FACTOR, 0, 100, 25, 230); //maps 10% and 90% PWM
-  int pwmDuty_R = map(speed, 0, 100, 25, 230);
+  int pwmDuty_R = map(speed, 0, 100, 66, 189);
   ledcWrite(PWM_PIN_L, pwmDuty_L);
   ledcWrite(PWM_PIN_R, pwmDuty_R);
 
@@ -172,7 +172,7 @@ void backward(int speed) {
   digitalWrite(DIR_PIN_R, HIGH);  
 
   int pwmDuty_L = map(speed*LEFT_CALIBRATION_FACTOR, 0, 100, 25, 230); //maps 10% and 90% PWM
-  int pwmDuty_R = map(speed, 0, 100, 25, 230);
+  int pwmDuty_R = map(speed, 0, 100, 66, 189);
   ledcWrite(PWM_PIN_L, pwmDuty_L);
   ledcWrite(PWM_PIN_R, pwmDuty_R);
  
@@ -185,7 +185,7 @@ void left(int speed) {
   digitalWrite(DIR_PIN_L, HIGH);  // Default: CW
   digitalWrite(DIR_PIN_R, LOW);  // Default: CW
 
-  int pwmDuty = map(speed, 0, 100, 25, 230);
+  int pwmDuty = map(speed, 0, 100, 66, 189);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 
@@ -195,10 +195,10 @@ void left(int speed) {
 
 
 void right(int speed) {
-  digitalWrite(DIR_PIN_L, HIGH);  //CCW
-  digitalWrite(DIR_PIN_R, LOW);  //CCW
+  digitalWrite(DIR_PIN_L, LOW);  //CCW
+  digitalWrite(DIR_PIN_R, HIGH);  //CCW
 
-  int pwmDuty = map(speed, 0, 100, 25, 230);
+  int pwmDuty = map(speed, 0, 100, 66, 189);
   ledcWrite(PWM_PIN_L, pwmDuty);
   ledcWrite(PWM_PIN_R, pwmDuty);
 
