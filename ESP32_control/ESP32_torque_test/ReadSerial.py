@@ -1,3 +1,4 @@
+import argparse
 import serial
 import csv
 import datetime
@@ -6,13 +7,20 @@ import os
 
 COM_PORT = "COM4"  # change to match your system (check Arduino IDE → Tools → Port)
 
-now = datetime.datetime.now()
-date_time = now.strftime("%m-%d_%H-%M")
+parser = argparse.ArgumentParser()
+parser.add_argument("name", nargs="?", help="output filename stem (saved as data/<name>.csv)")
+args = parser.parse_args()
+
+if args.name:
+    filename = f'./data/{args.name}.csv'
+else:
+    date_time = datetime.datetime.now().strftime("%m-%d_%H-%M")
+    filename = f'./data/log_{date_time}.csv'
 
 os.makedirs('./data', exist_ok=True)
-with open(f'./data/log_{date_time}.csv', mode='w', newline='') as logfile:
+with open(filename, mode='w', newline='') as logfile:
     writer = csv.writer(logfile)
-    writer.writerow(["pc_time", "elapsed_ms", "speed_rpm", "current_a"])
+    writer.writerow(["pc_time", "elapsed_ms", "linear-speed_ms-1", "current_a"])
 
     ser = serial.Serial(COM_PORT, 115200)
     time.sleep(2)       # wait for ESP32 to finish booting after DTR reset
@@ -23,7 +31,7 @@ with open(f'./data/log_{date_time}.csv', mode='w', newline='') as logfile:
     if ack != "pong":
         print(f"Unexpected handshake response: {ack!r}")
     else:
-        print("ESP32 ready — press GPIO21 button to start test")
+        print("ESP32 ready — press GPIO0 button to start test")
 
     while True:
         decoded = ser.readline().decode("utf-8").strip()

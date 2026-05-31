@@ -30,15 +30,15 @@ def plot(csv_path: str, kt: float) -> None:
         rows=3, cols=1,
         shared_xaxes=True,
         vertical_spacing=0.06,
-        subplot_titles=("Speed", "Current", "Torque"),
+        subplot_titles=("Linear Speed", "Current", "Torque"),
     )
 
     common = dict(mode="lines", line=dict(width=1.5))
 
     fig.add_trace(
-        go.Scatter(x=df["elapsed_s"], y=df["speed_rpm"],
-                   name="Speed (RPM)", line=dict(color="#1f77b4", **{k: v for k, v in common["line"].items() if k != "color"}),
-                   mode="lines", hovertemplate="%{y:.0f} RPM<extra></extra>"),
+        go.Scatter(x=df["elapsed_s"], y=df["linear-speed_ms-1"],
+                   name="Speed (ms-1)", line=dict(color="#1f77b4", **{k: v for k, v in common["line"].items() if k != "color"}),
+                   mode="lines", hovertemplate="%{y:.4f} ms-1<extra></extra>"),
         row=1, col=1,
     )
     fig.add_trace(
@@ -54,7 +54,7 @@ def plot(csv_path: str, kt: float) -> None:
         row=3, col=1,
     )
 
-    fig.update_yaxes(title_text="RPM", row=1, col=1)
+    fig.update_yaxes(title_text="m/s", row=1, col=1)
     fig.update_yaxes(title_text="A", row=2, col=1)
     fig.update_yaxes(title_text="mNm", row=3, col=1)
     fig.update_xaxes(title_text="Time (s)", row=3, col=1,
